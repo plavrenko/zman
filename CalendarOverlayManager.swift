@@ -1,0 +1,221 @@
+//
+//  CalendarOverlayManager.swift
+//  Zman-claude
+//
+//  Created by Pavel Lavrenko on 12/02/2026.
+//
+
+import AppKit
+import SwiftUI
+import Combine
+
+/// Manages an overlay window that appears on top of Calendar.app when there's a timezone mismatch
+class CalendarOverlayManager: NSObject, ObservableObject {
+    private var overlayWindow: NSWindow?
+    private var timer: Timer?
+    private var cancellables = Set<AnyCancellable>()
+    
+    /// Start monitoring and showing overlay when needed
+    func startMonitoring() {
+        // Check immediately
+        updateOverlay()
+        
+        // Check periodically (every 0.5 seconds for faster response)
+        timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            self?.updateOverlay()
+        }
+        
+        // Also listen for workspace notifications
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(workspaceChanged),
+            name: NSWorkspace.didActivateApplicationNotification,
+            object: nil
+        )
+        
+        // Listen for UserDefaults changes (both iCal and our app)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(userDefaultsChanged),
+            name: UserDefaults.didChangeNotification,
+            object: nil
+        )
+    }
+    
+    /// Stop monitoring and remove overlay
+    func stopMonitoring() {
+        timer?.invalidate()
+        timer = nil
+        hideOverlay()
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
+        NotificationCenter.default.removeObserver(self)
+        cancellables.removeAll()
+    }
+    
+    @objc private func workspaceChanged() {
+        updateOverlay()
+    }
+    
+    @objc private func userDefaultsChanged() {
+        updateOverlay()
+    }
+    
+    private func updateOverlay() {
+        let shouldShow = isCalendarAppRunning() && TeamTimeZoneManager.isCalendarTimezoneMismatch()
+        
+        if shouldShow {
+            showOverlay()
+        } else {
+            hideOverlay()
+        }
+    }
+    
+    private func isCalendarAppRunning() -> Bool {
+        let runningApps = NSWorkspace.shared.runningApplications
+        return runningApps.contains { app in
+            app.bundleIdentifier == "com.apple.iCal"
+        }
+    }
+    
+    private func showOverlay() {
+        // If overlay already exists, just update its position
+        if let existingWindow = overlayWindow, existingWindow.isVisible {
+            updateOverlayPosition()
+            return
+        }
+        
+        // Get Calendar.app window frame
+        guard let calendarFrame = getCalendarWindowFrame() else {
+            return
+        }
+        
+        // Create overlay window
+        let window = NSWindow(
+            contentRect: calendarFrame,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        
+        window.backgroundColor = .clear
+        window.isOpaque = false
+        window.level = .floating
+        window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+        window.ignoresMouseEvents = true
+        window.hasShadow = false
+        
+        // Create the orange tint view
+        let hostingView = NSHostingView(rootView: OverlayView())
+        hostingView.frame = window.contentView!.bounds
+        window.contentView = hostingView
+        
+        overlayWindow = window
+        window.orderFront(nil)
+        
+        // Start updating position
+        startPositionTracking()
+    }
+    
+    private func hideOverlay() {
+        overlayWindow?.orderOut(nil)
+        overlayWindow = nil
+        stopPositionTracking()
+    }
+    
+    private var positionTimer: Timer?
+    
+    private func startPositionTracking() {
+        positionTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            self?.updateOverlayPosition()
+        }
+    }
+    
+    private func stopPositionTracking() {
+        positionTimer?.invalidate()
+        positionTimer = nil
+    }
+    
+    private func updateOverlayPosition() {
+        guard let window = overlayWindow,
+              let calendarFrame = getCalendarWindowFrame() else {
+            return
+        }
+        
+        window.setFrame(calendarFrame, display: true)
+    }
+    
+    private func getCalendarWindowFrame() -> CGRect? {
+        // Get Calendar.app
+        guard let calendarApp = NSWorkspace.shared.runningApplications.first(where: {
+            $0.bundleIdentifier == "com.apple.iCal"
+        }) else {
+            return nil
+        }
+        
+        // Use Accessibility API to get window frame
+        let app = AXUIElementCreateApplication(calendarApp.processIdentifier)
+        var windowsValue: AnyObject?
+        
+        let result = AXUIElementCopyAttributeValue(
+            app,
+            kAXWindowsAttribute as CFString,
+            &windowsValue
+        )
+        
+        guard result == .success,
+              let windows = windowsValue as? [AXUIElement],
+              let firstWindow = windows.first else {
+            return nil
+        }
+        
+        // Get position (in screen coordinates - bottom-left origin)
+        var positionValue: AnyObject?
+        AXUIElementCopyAttributeValue(
+            firstWindow,
+            kAXPositionAttribute as CFString,
+            &positionValue
+        )
+        
+        var position = CGPoint.zero
+        if let positionValue = positionValue {
+            AXValueGetValue(positionValue as! AXValue, .cgPoint, &position)
+        }
+        
+        // Get size
+        var sizeValue: AnyObject?
+        AXUIElementCopyAttributeValue(
+            firstWindow,
+            kAXSizeAttribute as CFString,
+            &sizeValue
+        )
+        
+        var size = CGSize.zero
+        if let sizeValue = sizeValue {
+            AXValueGetValue(sizeValue as! AXValue, .cgSize, &size)
+        }
+        
+        // Convert from screen coordinates (bottom-left origin) to NSWindow coordinates (top-left origin)
+        guard let screen = NSScreen.main else {
+            return CGRect(origin: position, size: size)
+        }
+        
+        let screenHeight = screen.frame.height
+        let convertedY = screenHeight - position.y - size.height
+        let convertedPosition = CGPoint(x: position.x, y: convertedY)
+        
+        return CGRect(origin: convertedPosition, size: size)
+    }
+    
+    deinit {
+        stopMonitoring()
+    }
+}
+
+/// The visual overlay view
+struct OverlayView: View {
+    var body: some View {
+        Color.orange.opacity(0.15)
+            .clipShape(RoundedRectangle(cornerRadius: 25))
+            .ignoresSafeArea()
+    }
+}

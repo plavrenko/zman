@@ -9,9 +9,17 @@ import SwiftUI
 
 @main
 struct Zman_claudeApp: App {
+    @StateObject private var overlayManager = CalendarOverlayManager()
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .onAppear {
+                    overlayManager.startMonitoring()
+                }
+                .onDisappear {
+                    overlayManager.stopMonitoring()
+                }
         }
         .commands {
             CommandGroup(replacing: .appSettings) {

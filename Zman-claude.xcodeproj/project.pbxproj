@@ -9,11 +9,13 @@
 /* Begin PBXBuildFile section */
 		111914C32F3E542F00C49007 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111914C22F3E542F00C49007 /* SettingsView.swift */; };
 		111914C52F3E544D00C49007 /* TeamTimeZoneManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111914C42F3E544D00C49007 /* TeamTimeZoneManager.swift */; };
+		111914C72F3E572300C49007 /* CalendarOverlayManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111914C62F3E572300C49007 /* CalendarOverlayManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		111914C22F3E542F00C49007 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		111914C42F3E544D00C49007 /* TeamTimeZoneManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamTimeZoneManager.swift; sourceTree = "<group>"; };
+		111914C62F3E572300C49007 /* CalendarOverlayManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarOverlayManager.swift; sourceTree = "<group>"; };
 		11DEC02B2F3E4A87008F650A /* Zman-claude.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Zman-claude.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -43,6 +45,7 @@
 				11DEC02C2F3E4A87008F650A /* Products */,
 				111914C22F3E542F00C49007 /* SettingsView.swift */,
 				111914C42F3E544D00C49007 /* TeamTimeZoneManager.swift */,
+				111914C62F3E572300C49007 /* CalendarOverlayManager.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -129,6 +132,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				111914C32F3E542F00C49007 /* SettingsView.swift in Sources */,
+				111914C72F3E572300C49007 /* CalendarOverlayManager.swift in Sources */,
 				111914C52F3E544D00C49007 /* TeamTimeZoneManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
