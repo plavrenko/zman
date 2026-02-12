@@ -10,12 +10,20 @@
 		111914C52F3E544D00C49007 /* TeamTimeZoneManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111914C42F3E544D00C49007 /* TeamTimeZoneManager.swift */; };
 		111914C72F3E572300C49007 /* CalendarOverlayManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111914C62F3E572300C49007 /* CalendarOverlayManager.swift */; };
 		111914C92F3E5F7700C49007 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111914C82F3E5F7700C49007 /* AboutView.swift */; };
+		113736112F3E653C004C4B32 /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 113736102F3E653C004C4B32 /* .gitignore */; };
+		113736132F3E6547004C4B32 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 113736122F3E6547004C4B32 /* README.md */; };
+		113736152F3E65F0004C4B32 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 113736142F3E65F0004C4B32 /* LICENSE */; };
+		113736172F3E65F0004C4B32 /* CHANGELOG.md in Resources */ = {isa = PBXBuildFile; fileRef = 113736162F3E65F0004C4B32 /* CHANGELOG.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		111914C42F3E544D00C49007 /* TeamTimeZoneManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamTimeZoneManager.swift; sourceTree = "<group>"; };
 		111914C62F3E572300C49007 /* CalendarOverlayManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarOverlayManager.swift; sourceTree = "<group>"; };
 		111914C82F3E5F7700C49007 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
+		113736102F3E653C004C4B32 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
+		113736122F3E6547004C4B32 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		113736142F3E65F0004C4B32 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		113736162F3E65F0004C4B32 /* CHANGELOG.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CHANGELOG.md; sourceTree = "<group>"; };
 		11DEC02B2F3E4A87008F650A /* Zman-claude.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Zman-claude.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -46,6 +54,10 @@
 				111914C42F3E544D00C49007 /* TeamTimeZoneManager.swift */,
 				111914C62F3E572300C49007 /* CalendarOverlayManager.swift */,
 				111914C82F3E5F7700C49007 /* AboutView.swift */,
+				113736102F3E653C004C4B32 /* .gitignore */,
+				113736122F3E6547004C4B32 /* README.md */,
+				113736142F3E65F0004C4B32 /* LICENSE */,
+				113736162F3E65F0004C4B32 /* CHANGELOG.md */,
 			);
 			sourceTree = "<group>";
 		};
@@ -121,6 +133,10 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				113736132F3E6547004C4B32 /* README.md in Resources */,
+				113736172F3E65F0004C4B32 /* CHANGELOG.md in Resources */,
+				113736112F3E653C004C4B32 /* .gitignore in Resources */,
+				113736152F3E65F0004C4B32 /* LICENSE in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
