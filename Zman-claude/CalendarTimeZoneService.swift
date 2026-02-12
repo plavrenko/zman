@@ -13,13 +13,15 @@ import Combine
 class CalendarTimeZoneService: ObservableObject {
     @Published var currentTimeZone: String = "Not set"
     @Published var timeZoneSupported: Bool = false
+    @Published var recentlyUsedTimeZones: [String] = []
     
     private var pollTimer: Timer?
-    private let defaults: UserDefaults
+    private let iCalDefaults: UserDefaults
     
     init() {
-        self.defaults = UserDefaults(suiteName: "com.apple.iCal") ?? .standard
+        self.iCalDefaults = UserDefaults(suiteName: "com.apple.iCal") ?? .standard
         loadTimeZone()
+        loadRecentlyUsedTimeZones()
     }
     
     /// Start monitoring for timezone changes
@@ -40,17 +42,27 @@ class CalendarTimeZoneService: ObservableObject {
     /// Manually refresh the timezone
     func refresh() {
         loadTimeZone()
+        loadRecentlyUsedTimeZones()
     }
     
     private func loadTimeZone() {
         // Read the current iCal window timezone
-        if let timezone = defaults.string(forKey: "lastViewsTimeZone") {
+        if let timezone = iCalDefaults.string(forKey: "lastViewsTimeZone") {
             currentTimeZone = timezone
         } else {
             currentTimeZone = "Not set"
         }
         
         // Read timezone support setting
-        timeZoneSupported = defaults.bool(forKey: "TimeZone support enabled")
+        timeZoneSupported = iCalDefaults.bool(forKey: "TimeZone support enabled")
+    }
+    
+    /// Load the recently used timezones from iCal preferences
+    private func loadRecentlyUsedTimeZones() {
+        if let timezones = iCalDefaults.array(forKey: "RecentlyUsedTimeZones") as? [String] {
+            recentlyUsedTimeZones = timezones
+        } else {
+            recentlyUsedTimeZones = []
+        }
     }
 }
