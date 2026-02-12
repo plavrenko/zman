@@ -10,21 +10,9 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var timeZoneService = CalendarTimeZoneService()
     @AppStorage("teamTimeZone") private var teamTimeZone: String = ""
-    @State private var showingSettings = false
     
     var body: some View {
         VStack(spacing: 20) {
-            HStack {
-                Spacer()
-                Button {
-                    showingSettings = true
-                } label: {
-                    Image(systemName: "gearshape")
-                }
-                .buttonStyle(.plain)
-                .padding()
-            }
-            
             Image(systemName: "clock.badge.checkmark")
                 .imageScale(.large)
                 .foregroundStyle(.tint)
@@ -51,19 +39,49 @@ struct ContentView: View {
                 
                 Divider()
                 
-                HStack {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("Team's Timezone:")
                         .fontWeight(.medium)
-                    if teamTimeZone.isEmpty {
-                        Text("Not set")
+                    
+                    if timeZoneService.recentlyUsedTimeZones.isEmpty {
+                        Text("No recently used timezones")
                             .foregroundStyle(.secondary)
-                        Button("Set in Settings") {
-                            showingSettings = true
+                            .font(.caption)
+                        Button("Refresh") {
+                            timeZoneService.refresh()
                         }
                         .buttonStyle(.link)
                     } else {
-                        Text(teamTimeZone)
-                            .foregroundStyle(.orange)
+                        Picker("", selection: $teamTimeZone) {
+                            Text("Not set")
+                                .tag("")
+                            
+                            Divider()
+                            
+                            ForEach(timeZoneService.recentlyUsedTimeZones, id: \.self) { timezone in
+                                HStack {
+                                    Text(timezone)
+                                    if let tz = TimeZone(identifier: timezone) {
+                                        Text("(\(tz.abbreviation() ?? ""))")
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                .tag(timezone)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    
+                    if !teamTimeZone.isEmpty {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                                .imageScale(.small)
+                            Text(teamTimeZone)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
@@ -73,9 +91,7 @@ struct ContentView: View {
             .shadow(radius: 2)
         }
         .padding()
-        .sheet(isPresented: $showingSettings) {
-            SettingsView(timeZoneService: timeZoneService)
-        }
+        .frame(minWidth: 400, minHeight: 350)
         .onAppear {
             timeZoneService.startMonitoring()
         }

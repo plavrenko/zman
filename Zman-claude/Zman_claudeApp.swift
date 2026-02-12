@@ -16,18 +16,6 @@ struct Zman_claudeApp: App {
         WindowGroup {
             ContentView()
         }
-        .commands {
-            CommandGroup(replacing: .appSettings) {
-                Button("Settings...") {
-                    openSettings()
-                }
-                .keyboardShortcut(",", modifiers: .command)
-            }
-        }
-        
-        Settings {
-            SettingsView(timeZoneService: CalendarTimeZoneService())
-        }
     }
     
     init() {
@@ -39,15 +27,8 @@ struct Zman_claudeApp: App {
             manager.startMonitoring()
         }
     }
-    
-    private func openSettings() {
-        if #available(macOS 14.0, *) {
-            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        } else {
-            NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
-        }
-    }
 }
+
 // App delegate to prevent app from quitting when windows close
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
