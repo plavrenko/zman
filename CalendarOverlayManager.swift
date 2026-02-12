@@ -61,7 +61,7 @@ class CalendarOverlayManager: NSObject, ObservableObject {
     }
     
     private func updateOverlay() {
-        let shouldShow = isCalendarAppRunning() && TeamTimeZoneManager.isCalendarTimezoneMismatch()
+        let shouldShow = isCalendarAppFrontmost() && TeamTimeZoneManager.isCalendarTimezoneMismatch()
         
         if shouldShow {
             showOverlay()
@@ -75,6 +75,13 @@ class CalendarOverlayManager: NSObject, ObservableObject {
         return runningApps.contains { app in
             app.bundleIdentifier == "com.apple.iCal"
         }
+    }
+    
+    private func isCalendarAppFrontmost() -> Bool {
+        guard let frontmostApp = NSWorkspace.shared.frontmostApplication else {
+            return false
+        }
+        return frontmostApp.bundleIdentifier == "com.apple.iCal"
     }
     
     private func showOverlay() {
