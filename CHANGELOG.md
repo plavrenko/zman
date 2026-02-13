@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added timer tolerance (50% on safety-net, 20% on position) for CPU wake-up coalescing
 - Cached Calendar.app PID to skip runningApplications scan on every position tick
 - Removed dead code: unused `isCalendarAppRunning()` method and empty `cancellables` set
+- Replaced Accessibility API (AXUIElement) with CGWindowList API for window frame tracking — no cross-process IPC
+- Cached Calendar.app window ID for single-window queries via `CGWindowListCreateDescriptionFromArray`
+- Overlay now hides during Calendar window movement and reappears at final position (adaptive two-speed polling: 1s idle / 0.15s moving)
+- Added fade-out (0.15s) and fade-in (0.2s) animations using NSAnimationContext for smooth overlay transitions
 
 ### Fixed
 - Fixed notification observer leak in CalendarTimeZoneService (token was discarded, observer never removed)

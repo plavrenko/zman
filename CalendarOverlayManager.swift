@@ -52,7 +52,7 @@ class CalendarOverlayManager: NSObject {
             object: nil
         )
     }
-    
+
     /// Stop monitoring and remove overlay
     func stopMonitoring() {
         isMonitoring = false
@@ -62,11 +62,11 @@ class CalendarOverlayManager: NSObject {
         NSWorkspace.shared.notificationCenter.removeObserver(self)
         NotificationCenter.default.removeObserver(self)
     }
-    
+
     @objc private func workspaceChanged() {
         updateOverlay()
     }
-    
+
     @objc private func appTerminated(_ notification: Notification) {
         guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
               app.bundleIdentifier == "com.apple.iCal" else { return }
@@ -76,28 +76,27 @@ class CalendarOverlayManager: NSObject {
     @objc private func userDefaultsChanged() {
         updateOverlay()
     }
-    
+
     private func updateOverlay() {
         let shouldShow = isCalendarAppFrontmost() && TeamTimeZoneManager.isCalendarTimezoneMismatch()
-        
+
         if shouldShow {
             showOverlay()
         } else {
             hideOverlay()
         }
     }
-    
+
     private func isCalendarAppFrontmost() -> Bool {
         guard let frontmostApp = NSWorkspace.shared.frontmostApplication else {
             return false
         }
         return frontmostApp.bundleIdentifier == "com.apple.iCal"
     }
-    
+
     private func showOverlay() {
         // If overlay already exists, just update its position
-        if let existingWindow = overlayWindow, existingWindow.isVisible {
-            updateOverlayPosition()
+        if overlayWindow != nil {
             return
         }
 
@@ -113,7 +112,7 @@ class CalendarOverlayManager: NSObject {
         guard let calendarFrame = getCalendarWindowFrame() else {
             return
         }
-        
+
         // Create overlay window
         let window = NSWindow(
             contentRect: calendarFrame,
@@ -121,114 +120,177 @@ class CalendarOverlayManager: NSObject {
             backing: .buffered,
             defer: false
         )
-        
+
         window.backgroundColor = .clear
         window.isOpaque = false
         window.level = .floating
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         window.ignoresMouseEvents = true
         window.hasShadow = false
-        
+
         // Create the orange tint view
         let hostingView = NSHostingView(rootView: OverlayView())
         hostingView.frame = window.contentView!.bounds
         window.contentView = hostingView
-        
+
         overlayWindow = window
         window.orderFront(nil)
-        
+
         // Start updating position
         startPositionTracking()
     }
-    
+
     private func hideOverlay() {
         overlayWindow?.orderOut(nil)
         overlayWindow = nil
         calendarPID = 0
         stopPositionTracking()
     }
-    
+
     private var positionTimer: Timer?
-    
+    private var lastFrame: CGRect = .zero
+    private var calendarWindowID: CGWindowID = kCGNullWindowID
+
+    private static let idleInterval: TimeInterval = 1.0      // 1 fps while idle — cheap detection of movement start
+    private static let movingInterval: TimeInterval = 0.15   // ~7 fps while moving — detect when drag stops
+    private static let settleFrames = 2                       // 2 identical frames (~0.3s) = window stopped
+
+    private var settleCount = 0
+    private var isMoving = false
+
     private func startPositionTracking() {
         positionTimer?.invalidate()
-        positionTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.updateOverlayPosition()
-        }
-        positionTimer?.tolerance = 0.2
+        settleCount = 0
+        isMoving = false
+        calendarWindowID = findCalendarWindowID() ?? kCGNullWindowID
+        lastFrame = getCalendarWindowFrame() ?? .zero
+        scheduleTimer(interval: Self.idleInterval)
     }
-    
+
     private func stopPositionTracking() {
         positionTimer?.invalidate()
         positionTimer = nil
+        calendarWindowID = kCGNullWindowID
     }
-    
-    private func updateOverlayPosition() {
+
+    private func scheduleTimer(interval: TimeInterval) {
+        positionTimer?.invalidate()
+        positionTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            self?.checkPosition()
+        }
+        positionTimer?.tolerance = interval * 0.3
+    }
+
+    private func checkPosition() {
         guard let window = overlayWindow,
               let calendarFrame = getCalendarWindowFrame() else {
             return
         }
-        
-        window.setFrame(calendarFrame, display: false)
-    }
-    
-    private func getCalendarWindowFrame() -> CGRect? {
-        guard calendarPID != 0 else { return nil }
 
-        // Use cached PID for Accessibility API
-        let app = AXUIElementCreateApplication(calendarPID)
-        var windowsValue: AnyObject?
-        
-        let result = AXUIElementCopyAttributeValue(
-            app,
-            kAXWindowsAttribute as CFString,
-            &windowsValue
-        )
-        
-        guard result == .success,
-              let windows = windowsValue as? [AXUIElement],
-              let firstWindow = windows.first else {
+        if calendarFrame == lastFrame {
+            settleCount += 1
+            // Window stopped — snap overlay to final position, fade in, and slow down
+            if settleCount == Self.settleFrames && isMoving {
+                window.setFrame(calendarFrame, display: false)
+                window.alphaValue = 0
+                window.orderFront(nil)
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0.2
+                    window.animator().alphaValue = 1
+                }
+                isMoving = false
+                scheduleTimer(interval: Self.idleInterval)
+            }
+        } else {
+            // Window is moving — fade out overlay and speed up polling to detect stop
+            if !isMoving {
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0.15
+                    window.animator().alphaValue = 0
+                }
+                isMoving = true
+                scheduleTimer(interval: Self.movingInterval)
+            }
+            settleCount = 0
+            lastFrame = calendarFrame
+        }
+    }
+
+    /// One-time scan to find Calendar.app's main window ID for targeted queries
+    private func findCalendarWindowID() -> CGWindowID? {
+        guard calendarPID != 0 else { return nil }
+        guard let windowList = CGWindowListCopyWindowInfo(
+            [.optionOnScreenOnly, .excludeDesktopElements],
+            kCGNullWindowID
+        ) as? [[CFString: Any]] else { return nil }
+
+        for entry in windowList {
+            guard let ownerPID = entry[kCGWindowOwnerPID] as? pid_t,
+                  ownerPID == calendarPID,
+                  let layer = entry[kCGWindowLayer] as? Int, layer == 0,
+                  let windowID = entry[kCGWindowNumber] as? CGWindowID else {
+                continue
+            }
+            return windowID
+        }
+        return nil
+    }
+
+    private func getCalendarWindowFrame() -> CGRect? {
+        // Fast path: query a single known window ID directly
+        if calendarWindowID != kCGNullWindowID {
+            if let frame = frameForWindowID(calendarWindowID) {
+                return frame
+            }
+            // Window ID went stale (closed/reopened) — re-discover
+            calendarWindowID = findCalendarWindowID() ?? kCGNullWindowID
+        }
+
+        // Slow path: enumerate to find the window (also caches the ID for next time)
+        guard calendarPID != 0 else { return nil }
+        guard let windowList = CGWindowListCopyWindowInfo(
+            [.optionOnScreenOnly, .excludeDesktopElements],
+            kCGNullWindowID
+        ) as? [[CFString: Any]] else { return nil }
+
+        for entry in windowList {
+            guard let ownerPID = entry[kCGWindowOwnerPID] as? pid_t,
+                  ownerPID == calendarPID,
+                  let layer = entry[kCGWindowLayer] as? Int, layer == 0,
+                  let bounds = entry[kCGWindowBounds] as? [String: CGFloat],
+                  let x = bounds["X"], let y = bounds["Y"],
+                  let w = bounds["Width"], let h = bounds["Height"] else {
+                continue
+            }
+            if let wid = entry[kCGWindowNumber] as? CGWindowID {
+                calendarWindowID = wid
+            }
+            return convertToNSWindowCoords(x: x, y: y, w: w, h: h)
+        }
+        return nil
+    }
+
+    /// Query a single window by ID — avoids enumerating all on-screen windows
+    private func frameForWindowID(_ windowID: CGWindowID) -> CGRect? {
+        let idArray = [windowID] as CFArray
+        guard let infoList = CGWindowListCreateDescriptionFromArray(idArray) as? [[CFString: Any]],
+              let entry = infoList.first,
+              let bounds = entry[kCGWindowBounds] as? [String: CGFloat],
+              let x = bounds["X"], let y = bounds["Y"],
+              let w = bounds["Width"], let h = bounds["Height"] else {
             return nil
         }
-        
-        // Get position (in screen coordinates - bottom-left origin)
-        var positionValue: AnyObject?
-        AXUIElementCopyAttributeValue(
-            firstWindow,
-            kAXPositionAttribute as CFString,
-            &positionValue
-        )
-        
-        var position = CGPoint.zero
-        if let positionValue = positionValue {
-            AXValueGetValue(positionValue as! AXValue, .cgPoint, &position)
-        }
-        
-        // Get size
-        var sizeValue: AnyObject?
-        AXUIElementCopyAttributeValue(
-            firstWindow,
-            kAXSizeAttribute as CFString,
-            &sizeValue
-        )
-        
-        var size = CGSize.zero
-        if let sizeValue = sizeValue {
-            AXValueGetValue(sizeValue as! AXValue, .cgSize, &size)
-        }
-        
-        // Convert from screen coordinates (bottom-left origin) to NSWindow coordinates (top-left origin)
-        guard let screen = NSScreen.main else {
-            return CGRect(origin: position, size: size)
-        }
-        
-        let screenHeight = screen.frame.height
-        let convertedY = screenHeight - position.y - size.height
-        let convertedPosition = CGPoint(x: position.x, y: convertedY)
-        
-        return CGRect(origin: convertedPosition, size: size)
+        return convertToNSWindowCoords(x: x, y: y, w: w, h: h)
     }
-    
+
+    private func convertToNSWindowCoords(x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat) -> CGRect {
+        guard let screen = NSScreen.main else {
+            return CGRect(x: x, y: y, width: w, height: h)
+        }
+        let convertedY = screen.frame.height - y - h
+        return CGRect(x: x, y: convertedY, width: w, height: h)
+    }
+
     deinit {
         stopMonitoring()
     }
