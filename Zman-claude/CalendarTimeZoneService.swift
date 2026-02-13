@@ -71,4 +71,10 @@ class CalendarTimeZoneService: ObservableObject {
             recentlyUsedTimeZones = []
         }
     }
+
+    deinit {
+        if let observer = notificationObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
 }
