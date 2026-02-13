@@ -20,20 +20,21 @@ struct TeamTimeZoneManager {
         return identifier.isEmpty ? nil : TimeZone(identifier: identifier)
     }
     
+    private static let iCalDefaults = UserDefaults(suiteName: "com.apple.iCal")
+
     /// Check if the calendar timezone matches the team timezone
     static func isCalendarTimezoneMismatch() -> Bool {
         guard let teamTZ = teamTimeZone else {
             // If no team timezone is set, no mismatch
             return false
         }
-        
-        // Get iCal's timezone from its UserDefaults
-        guard let iCalDefaults = UserDefaults(suiteName: "com.apple.iCal"),
-              let iCalTimeZone = iCalDefaults.string(forKey: "lastViewsTimeZone") else {
+
+        // Get iCal's timezone from its cached UserDefaults
+        guard let iCalTimeZone = iCalDefaults?.string(forKey: "lastViewsTimeZone") else {
             // If we can't read iCal's timezone, assume mismatch
             return true
         }
-        
+
         // Compare iCal's timezone with team timezone
         return iCalTimeZone != teamTZ.identifier
     }

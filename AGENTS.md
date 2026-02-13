@@ -58,7 +58,8 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 - ObservableObject for stateful managers
 - @StateObject for manager ownership
 - @AppStorage for UserDefaults bindings
-- Timer-based polling (0.1-2s intervals) for external state monitoring
+- Notification-driven updates with safety-net timer (5s) for edge cases
+- Timer-based polling (1s) for overlay position tracking only
 - UserDefaults suite access for reading Calendar.app preferences
 - Accessibility API (AXUIElement) for window frame tracking
 - NSHostingView bridge for SwiftUI in NSWindow
@@ -80,7 +81,7 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 - **Do not use EventKit**: Despite README mention, no EventKit access in code. App reads Calendar.app UserDefaults, not calendar events.
 - **Do not modify Accessibility permissions handling**: Code uses AXUIElement directly without permission checks—maintain this pattern.
 - **Do not change overlay opacity/color**: Fixed at `Color.orange.opacity(0.15)` - this is the core UX.
-- **Do not replace Timer-based polling**: Calendar.app does not post notifications for timezone preference changes. Polling is the only way to detect these changes. UserDefaults.didChangeNotification fires for our own defaults but not for com.apple.iCal suite changes.
+- **Do not remove safety-net timer**: Calendar.app does not reliably post notifications for timezone preference changes. The 5s safety-net timer catches edge cases that UserDefaults.didChangeNotification misses for the com.apple.iCal suite.
 - **Do not access calendar events**: This is a timezone indicator, not an event reader.
 - **Do not change bundle ID references**: `com.apple.iCal` is hardcoded for Calendar.app detection.
 - **Do not remove AppDelegate**: Prevents app quit on window close—essential for menu bar utility behavior.
@@ -94,6 +95,6 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 
 - App initializes CalendarOverlayManager twice (once in @StateObject, once in init)—⚠️ potential issue to discuss.
 - TeamTimeZoneManager is a struct with only static methods—could be enum or namespace instead.
-- **Timer polling rationale**: Calendar.app doesn't post notifications when timezone preferences change in com.apple.iCal UserDefaults suite, making polling necessary (0.1s for overlay position, 0.5s for timezone/app state, 2s for timezone service).
+- **Timer polling rationale**: Calendar.app doesn't reliably post notifications when timezone preferences change in com.apple.iCal UserDefaults suite. Primary detection uses UserDefaults.didChangeNotification and NSWorkspace.didActivateApplicationNotification, with a 5s safety-net timer for edge cases. Position tracking uses a 1s timer.
 - No error handling for Accessibility API failures—overlay silently fails if AX unavailable.
 - App stays running when window closed (AppDelegate prevents termination)—typical menu bar app pattern.
