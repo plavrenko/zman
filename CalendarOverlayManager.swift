@@ -13,9 +13,8 @@ import Combine
 class CalendarOverlayManager: NSObject, ObservableObject {
     private var overlayWindow: NSWindow?
     private var timer: Timer?
-    private var cancellables = Set<AnyCancellable>()
-    
     private var isMonitoring = false
+    private var calendarPID: pid_t = 0
 
     /// Start monitoring and showing overlay when needed
     func startMonitoring() {
@@ -29,6 +28,7 @@ class CalendarOverlayManager: NSObject, ObservableObject {
         timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
             self?.updateOverlay()
         }
+        timer?.tolerance = 2.5
 
         // Also listen for workspace notifications
         NSWorkspace.shared.notificationCenter.addObserver(
@@ -55,7 +55,6 @@ class CalendarOverlayManager: NSObject, ObservableObject {
         hideOverlay()
         NSWorkspace.shared.notificationCenter.removeObserver(self)
         NotificationCenter.default.removeObserver(self)
-        cancellables.removeAll()
     }
     
     @objc private func workspaceChanged() {
@@ -76,13 +75,6 @@ class CalendarOverlayManager: NSObject, ObservableObject {
         }
     }
     
-    private func isCalendarAppRunning() -> Bool {
-        let runningApps = NSWorkspace.shared.runningApplications
-        return runningApps.contains { app in
-            app.bundleIdentifier == "com.apple.iCal"
-        }
-    }
-    
     private func isCalendarAppFrontmost() -> Bool {
         guard let frontmostApp = NSWorkspace.shared.frontmostApplication else {
             return false
@@ -96,7 +88,15 @@ class CalendarOverlayManager: NSObject, ObservableObject {
             updateOverlayPosition()
             return
         }
-        
+
+        // Cache Calendar.app PID to avoid scanning runningApplications on every position tick
+        guard let calendarApp = NSWorkspace.shared.runningApplications.first(where: {
+            $0.bundleIdentifier == "com.apple.iCal"
+        }) else {
+            return
+        }
+        calendarPID = calendarApp.processIdentifier
+
         // Get Calendar.app window frame
         guard let calendarFrame = getCalendarWindowFrame() else {
             return
@@ -132,6 +132,7 @@ class CalendarOverlayManager: NSObject, ObservableObject {
     private func hideOverlay() {
         overlayWindow?.orderOut(nil)
         overlayWindow = nil
+        calendarPID = 0
         stopPositionTracking()
     }
     
@@ -142,6 +143,7 @@ class CalendarOverlayManager: NSObject, ObservableObject {
         positionTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.updateOverlayPosition()
         }
+        positionTimer?.tolerance = 0.2
     }
     
     private func stopPositionTracking() {
@@ -159,15 +161,10 @@ class CalendarOverlayManager: NSObject, ObservableObject {
     }
     
     private func getCalendarWindowFrame() -> CGRect? {
-        // Get Calendar.app
-        guard let calendarApp = NSWorkspace.shared.runningApplications.first(where: {
-            $0.bundleIdentifier == "com.apple.iCal"
-        }) else {
-            return nil
-        }
-        
-        // Use Accessibility API to get window frame
-        let app = AXUIElementCreateApplication(calendarApp.processIdentifier)
+        guard calendarPID != 0 else { return nil }
+
+        // Use cached PID for Accessibility API
+        let app = AXUIElementCreateApplication(calendarPID)
         var windowsValue: AnyObject?
         
         let result = AXUIElementCopyAttributeValue(
