@@ -10,7 +10,7 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 
 - **Pattern**: MVVM-like with ObservableObject managers
 - **Layer structure**:
-  - UI Layer: SwiftUI views (ContentView, AboutView, OverlayView)
+  - UI Layer: SwiftUI views (ContentView, OverlayView)
   - Manager Layer: CalendarOverlayManager, TeamTimeZoneManager (struct with static methods), CalendarTimeZoneService
   - System Integration: AppKit for window management, Accessibility API for Calendar.app window tracking
 - **Data flow**: UserDefaults (both app and com.apple.iCal suite) → Managers → SwiftUI @Published properties → UI
@@ -35,7 +35,6 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
   - `CalendarOverlayManager.swift`: Floating window overlay management, Calendar.app tracking
   - `CalendarTimeZoneService.swift`: Reads Calendar.app UserDefaults, @MainActor ObservableObject
   - `TeamTimeZoneManager.swift`: Struct with static methods for team timezone storage/comparison
-  - `AboutView.swift`: About panel (not currently shown - standard panel used instead)
   - `OverlayView.swift`: Inline in CalendarOverlayManager.swift
 
 ## Conventions
@@ -89,7 +88,6 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 - **Do not remove AppDelegate**: Prevents app quit on window close—essential for menu bar utility behavior.
 - **Do not show windows on all spaces**: Overlay uses `.canJoinAllSpaces` but main window does not.
 - **Do not make overlay clickable**: `.ignoresMouseEvents = true` is critical—overlay must be non-intrusive.
-- **Do not use the AboutView**: Standard about panel is shown via `orderFrontStandardAboutPanel` instead.
 - **Do not change UserDefaults suite names**: `com.apple.iCal` suite is required for reading Calendar settings.
 - **Do not simplify coordinate conversion**: Screen coordinate conversion (bottom-left → top-left origin) is necessary for Accessibility API.
 

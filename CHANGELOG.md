@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed notification observer leak in CalendarTimeZoneService (token was discarded, observer never removed)
 - Fixed double initialization of CalendarOverlayManager — moved to AppDelegate as single owner
 - Removed unnecessary ObservableObject conformance and Combine import from CalendarOverlayManager
+- Overlay now hides immediately when Calendar.app quits (was delayed up to 5s)
+- Changed `setFrame(display: true)` to `display: false` — eliminates forced synchronous redraw every 1s
+- Added safety deinit to CalendarTimeZoneService for observer cleanup
+
+### Removed
+- Deleted unused AboutView.swift (75 lines of dead code)
 
 ## [1.0.0] - 2026-02-12
 
