@@ -15,28 +15,30 @@ class CalendarTimeZoneService: ObservableObject {
     @Published var timeZoneSupported: Bool = false
     @Published var recentlyUsedTimeZones: [String] = []
     
-    private var pollTimer: Timer?
     private let iCalDefaults: UserDefaults
-    
+
     init() {
         self.iCalDefaults = UserDefaults(suiteName: "com.apple.iCal") ?? .standard
         loadTimeZone()
         loadRecentlyUsedTimeZones()
     }
-    
-    /// Start monitoring for timezone changes
+
+    /// Start monitoring for timezone changes via notifications
     func startMonitoring() {
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+        NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.loadTimeZone()
             }
         }
     }
-    
+
     /// Stop monitoring for timezone changes
     func stopMonitoring() {
-        pollTimer?.invalidate()
-        pollTimer = nil
+        NotificationCenter.default.removeObserver(self)
     }
     
     /// Manually refresh the timezone
