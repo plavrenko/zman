@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cached Calendar.app PID to skip runningApplications scan on every position tick
 - Removed dead code: unused `isCalendarAppRunning()` method and empty `cancellables` set
 
+### Fixed
+- Fixed notification observer leak in CalendarTimeZoneService (token was discarded, observer never removed)
+- Fixed double initialization of CalendarOverlayManager — moved to AppDelegate as single owner
+- Removed unnecessary ObservableObject conformance and Combine import from CalendarOverlayManager
+
 ## [1.0.0] - 2026-02-12
 
 ### Added

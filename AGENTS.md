@@ -30,7 +30,7 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 
 - **Single target**: Zman-claude (app)
 - **Source files**:
-  - `Zman_claudeApp.swift`: @main entry point, AppDelegate, command menu setup
+  - `Zman_claudeApp.swift`: @main entry point, AppDelegate (owns CalendarOverlayManager), command menu setup
   - `ContentView.swift`: Main settings window, team timezone picker
   - `CalendarOverlayManager.swift`: Floating window overlay management, Calendar.app tracking
   - `CalendarTimeZoneService.swift`: Reads Calendar.app UserDefaults, @MainActor ObservableObject
@@ -55,8 +55,8 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 - Private members for internal manager state
 
 **Patterns**:
-- ObservableObject for stateful managers
-- @StateObject for manager ownership
+- ObservableObject for UI-bound services (CalendarTimeZoneService)
+- AppDelegate owns app-lifetime managers (CalendarOverlayManager)
 - @AppStorage for UserDefaults bindings
 - Notification-driven updates with safety-net timer (5s) for edge cases
 - Timer-based polling (1s) for overlay position tracking only
@@ -76,6 +76,7 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 - Explicit cleanup in stopMonitoring/deinit
 - Timer tolerance set on all timers to allow macOS coalescing
 - Cached Calendar.app PID to avoid repeated runningApplications scans
+- Notification observer tokens stored and properly removed on cleanup
 
 ## Do Not
 
@@ -94,7 +95,6 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 
 ## Additional Notes
 
-- App initializes CalendarOverlayManager twice (once in @StateObject, once in init)—⚠️ potential issue to discuss.
 - TeamTimeZoneManager is a struct with only static methods—could be enum or namespace instead.
 - **Timer polling rationale**: Calendar.app doesn't reliably post notifications when timezone preferences change in com.apple.iCal UserDefaults suite. Primary detection uses UserDefaults.didChangeNotification and NSWorkspace.didActivateApplicationNotification, with a 5s safety-net timer for edge cases. Position tracking uses a 1s timer.
 - No error handling for Accessibility API failures—overlay silently fails if AX unavailable.
