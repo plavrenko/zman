@@ -36,6 +36,14 @@ class CalendarOverlayManager: NSObject {
             object: nil
         )
 
+        // Hide overlay immediately when Calendar.app quits
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(appTerminated(_:)),
+            name: NSWorkspace.didTerminateApplicationNotification,
+            object: nil
+        )
+
         // Listen for UserDefaults changes (both iCal and our app)
         NotificationCenter.default.addObserver(
             self,
@@ -59,6 +67,12 @@ class CalendarOverlayManager: NSObject {
         updateOverlay()
     }
     
+    @objc private func appTerminated(_ notification: Notification) {
+        guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+              app.bundleIdentifier == "com.apple.iCal" else { return }
+        hideOverlay()
+    }
+
     @objc private func userDefaultsChanged() {
         updateOverlay()
     }
@@ -155,7 +169,7 @@ class CalendarOverlayManager: NSObject {
             return
         }
         
-        window.setFrame(calendarFrame, display: true)
+        window.setFrame(calendarFrame, display: false)
     }
     
     private func getCalendarWindowFrame() -> CGRect? {

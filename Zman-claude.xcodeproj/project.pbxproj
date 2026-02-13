@@ -9,8 +9,7 @@
 /* Begin PBXBuildFile section */
 		111914C52F3E544D00C49007 /* TeamTimeZoneManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111914C42F3E544D00C49007 /* TeamTimeZoneManager.swift */; };
 		111914C72F3E572300C49007 /* CalendarOverlayManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111914C62F3E572300C49007 /* CalendarOverlayManager.swift */; };
-		111914C92F3E5F7700C49007 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111914C82F3E5F7700C49007 /* AboutView.swift */; };
-		112339452F3F1DAA00A00C15 /* AGENTS.md in Resources */ = {isa = PBXBuildFile; fileRef = 112339442F3F1DAA00A00C15 /* AGENTS.md */; };
+112339452F3F1DAA00A00C15 /* AGENTS.md in Resources */ = {isa = PBXBuildFile; fileRef = 112339442F3F1DAA00A00C15 /* AGENTS.md */; };
 		112339472F3F1DAE00A00C15 /* CLAUDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 112339462F3F1DAE00A00C15 /* CLAUDE.md */; };
 		113736112F3E653C004C4B32 /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 113736102F3E653C004C4B32 /* .gitignore */; };
 		113736132F3E6547004C4B32 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 113736122F3E6547004C4B32 /* README.md */; };
@@ -21,8 +20,7 @@
 /* Begin PBXFileReference section */
 		111914C42F3E544D00C49007 /* TeamTimeZoneManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamTimeZoneManager.swift; sourceTree = "<group>"; };
 		111914C62F3E572300C49007 /* CalendarOverlayManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarOverlayManager.swift; sourceTree = "<group>"; };
-		111914C82F3E5F7700C49007 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
-		112339442F3F1DAA00A00C15 /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
+112339442F3F1DAA00A00C15 /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
 		112339462F3F1DAE00A00C15 /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
 		113736102F3E653C004C4B32 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		113736122F3E6547004C4B32 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -57,7 +55,6 @@
 				11DEC02C2F3E4A87008F650A /* Products */,
 				111914C42F3E544D00C49007 /* TeamTimeZoneManager.swift */,
 				111914C62F3E572300C49007 /* CalendarOverlayManager.swift */,
-				111914C82F3E5F7700C49007 /* AboutView.swift */,
 				113736102F3E653C004C4B32 /* .gitignore */,
 				113736122F3E6547004C4B32 /* README.md */,
 				113736142F3E65F0004C4B32 /* LICENSE */,
@@ -157,8 +154,7 @@
 			files = (
 				111914C72F3E572300C49007 /* CalendarOverlayManager.swift in Sources */,
 				111914C52F3E544D00C49007 /* TeamTimeZoneManager.swift in Sources */,
-				111914C92F3E5F7700C49007 /* AboutView.swift in Sources */,
-			);
+);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
@@ -291,7 +287,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 78ND3P3474;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -323,7 +319,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 78ND3P3474;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
