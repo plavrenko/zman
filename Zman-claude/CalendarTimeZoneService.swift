@@ -16,6 +16,7 @@ class CalendarTimeZoneService: ObservableObject {
     @Published var recentlyUsedTimeZones: [String] = []
     
     private let iCalDefaults: UserDefaults
+    private var notificationObserver: NSObjectProtocol?
 
     init() {
         self.iCalDefaults = UserDefaults(suiteName: "com.apple.iCal") ?? .standard
@@ -25,7 +26,7 @@ class CalendarTimeZoneService: ObservableObject {
 
     /// Start monitoring for timezone changes via notifications
     func startMonitoring() {
-        NotificationCenter.default.addObserver(
+        notificationObserver = NotificationCenter.default.addObserver(
             forName: UserDefaults.didChangeNotification,
             object: nil,
             queue: .main
@@ -38,7 +39,10 @@ class CalendarTimeZoneService: ObservableObject {
 
     /// Stop monitoring for timezone changes
     func stopMonitoring() {
-        NotificationCenter.default.removeObserver(self)
+        if let observer = notificationObserver {
+            NotificationCenter.default.removeObserver(observer)
+            notificationObserver = nil
+        }
     }
     
     /// Manually refresh the timezone
