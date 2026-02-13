@@ -10,8 +10,7 @@ import SwiftUI
 @main
 struct Zman_claudeApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @StateObject private var overlayManager = CalendarOverlayManager()
-    
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -38,19 +37,16 @@ struct Zman_claudeApp: App {
             }
         }
     }
-    
-    init() {
-        // Start monitoring when app launches
-        let manager = CalendarOverlayManager()
-        _overlayManager = StateObject(wrappedValue: manager)
-        
-        DispatchQueue.main.async {
-            manager.startMonitoring()
-        }
-    }
 }
-// App delegate to prevent app from quitting when windows close
+
+/// App delegate: prevents quit on window close, owns overlay manager for app lifetime
 class AppDelegate: NSObject, NSApplicationDelegate {
+    private let overlayManager = CalendarOverlayManager()
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        overlayManager.startMonitoring()
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
     }
