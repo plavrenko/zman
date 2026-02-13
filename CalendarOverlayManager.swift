@@ -7,10 +7,8 @@
 
 import AppKit
 import SwiftUI
-import Combine
-
 /// Manages an overlay window that appears on top of Calendar.app when there's a timezone mismatch
-class CalendarOverlayManager: NSObject, ObservableObject {
+class CalendarOverlayManager: NSObject {
     private var overlayWindow: NSWindow?
     private var timer: Timer?
     private var isMonitoring = false
