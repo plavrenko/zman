@@ -74,7 +74,8 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 **Memory management**:
 - `[weak self]` in Timer and notification closures
 - Explicit cleanup in stopMonitoring/deinit
-- Set<AnyCancellable> for Combine subscriptions
+- Timer tolerance set on all timers to allow macOS coalescing
+- Cached Calendar.app PID to avoid repeated runningApplications scans
 
 ## Do Not
 

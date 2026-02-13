@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cached UserDefaults(suiteName:) in TeamTimeZoneManager instead of re-creating per call
 - Added guard against position timer leak and duplicate notification observers
 - Removed documentation files from app bundle resources
+- Added timer tolerance (50% on safety-net, 20% on position) for CPU wake-up coalescing
+- Cached Calendar.app PID to skip runningApplications scan on every position tick
+- Removed dead code: unused `isCalendarAppRunning()` method and empty `cancellables` set
 
 ## [1.0.0] - 2026-02-12
 
