@@ -15,16 +15,21 @@ class CalendarOverlayManager: NSObject, ObservableObject {
     private var timer: Timer?
     private var cancellables = Set<AnyCancellable>()
     
+    private var isMonitoring = false
+
     /// Start monitoring and showing overlay when needed
     func startMonitoring() {
+        guard !isMonitoring else { return }
+        isMonitoring = true
+
         // Check immediately
         updateOverlay()
-        
-        // Check periodically (every 0.5 seconds for faster response)
-        timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+
+        // Safety-net timer: notifications handle most changes, this catches edge cases
+        timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
             self?.updateOverlay()
         }
-        
+
         // Also listen for workspace notifications
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
@@ -32,7 +37,7 @@ class CalendarOverlayManager: NSObject, ObservableObject {
             name: NSWorkspace.didActivateApplicationNotification,
             object: nil
         )
-        
+
         // Listen for UserDefaults changes (both iCal and our app)
         NotificationCenter.default.addObserver(
             self,
@@ -44,6 +49,7 @@ class CalendarOverlayManager: NSObject, ObservableObject {
     
     /// Stop monitoring and remove overlay
     func stopMonitoring() {
+        isMonitoring = false
         timer?.invalidate()
         timer = nil
         hideOverlay()
@@ -132,7 +138,8 @@ class CalendarOverlayManager: NSObject, ObservableObject {
     private var positionTimer: Timer?
     
     private func startPositionTracking() {
-        positionTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+        positionTimer?.invalidate()
+        positionTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.updateOverlayPosition()
         }
     }
