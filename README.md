@@ -1,27 +1,27 @@
 # Zman
 
-A minimalistic macOS utility that colors the Calendar app with an overlay indicator when your local timezone differs from your remote team's timezone.
+A minimalistic macOS utility that colors the Calendar app with an overlay indicator when your Calendar app timezone differs from your remote team's timezone.
 
 ## Features
 
-- Detects timezone differences between your location and your team's timezone
-- Provides a visual overlay on the macOS Calendar app
+- Detects timezone differences between Calendar.app's viewing timezone and your team's timezone
+- Provides a visual overlay on the macOS Calendar app when timezones differ
 
 ## Requirements
 
 - macOS (built with SwiftUI)
-- Access to Calendar (EventKit permissions required)
+- Accessibility permissions (to detect Calendar.app windows)
 
 ## Installation
 
 1. Clone this repository
 2. Open `Zman-claude.xcodeproj` in Xcode
 3. Build and run the project
-4. Grant Calendar access when prompted
+4. Grant Accessibility permissions when prompted (needed to detect Calendar.app)
 
 ## How It Works
 
-Zman monitors your calendar events and compares your local timezone with your configured team timezone. When there's a difference, it displays a visual indicator to help you stay aware of the time difference during meetings and events.
+Zman reads Calendar.app's current viewing timezone setting (the timezone you've set for viewing your calendar) and compares it with your configured team timezone. When these differ, it displays an orange overlay on Calendar.app to remind you that you're viewing your calendar in a different timezone than your team operates in.
 
 ## Configuration
 
@@ -30,14 +30,14 @@ The app allows you to:
 
 ## Privacy
 
-Zman only accesses your calendar data locally on your device. No data is sent to external servers or stored outside of your Mac.
+Zman only reads Calendar.app's timezone preferences from your system. It does not access your calendar events or any personal data. No data is sent to external servers or stored outside of your Mac.
 
 ## Development
 
 Built with:
 - SwiftUI
-- EventKit (Calendar access)
-- AppKit (macOS integration)
+- AppKit (macOS integration, window overlays, Accessibility API)
+- UserDefaults (reading Calendar.app preferences)
 
 ## Author
 
