@@ -217,6 +217,8 @@ class CalendarOverlayManager: NSObject {
             if wid == overlayWinNum { continue }
             // Skip non-standard layers (menu bar, dock, system UI elements)
             guard let layer = entry[kCGWindowLayer] as? Int, layer == 0 else { continue }
+            // Skip Calendar's own windows (popups, popovers, sheets, dropdowns)
+            if let ownerPID = entry[kCGWindowOwnerPID] as? pid_t, ownerPID == calendarPID { continue }
 
             guard let bounds = entry[kCGWindowBounds] as? [String: CGFloat],
                   let x = bounds["X"], let y = bounds["Y"],
@@ -232,8 +234,14 @@ class CalendarOverlayManager: NSObject {
     }
 
     private func showOverlay() {
-        // If overlay already exists, just update its position
-        if overlayWindow != nil {
+        // If overlay already exists, ensure it's visible (mouse monitor may have faded it out)
+        if let window = overlayWindow {
+            if window.alphaValue < 1 && !isMoving {
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0.2
+                    window.animator().alphaValue = 1
+                }
+            }
             return
         }
 
@@ -291,7 +299,9 @@ class CalendarOverlayManager: NSObject {
 
     private func startMouseMonitor() {
         stopMouseMonitor()
-        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged]) { [weak self] event in
+        // Only react to actual drags, not clicks — toolbar button clicks (timezone
+        // picker, view selector) should not trigger fade-out.
+        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDragged) { [weak self] event in
             self?.handleGlobalMouse(event)
         }
     }
@@ -306,25 +316,10 @@ class CalendarOverlayManager: NSObject {
     private func handleGlobalMouse(_ event: NSEvent) {
         guard let window = overlayWindow, !isMoving else { return }
         let mouseLoc = NSEvent.mouseLocation
-        let frame = window.frame
-
-        switch event.type {
-        case .leftMouseDown:
-            // Check if click is in Calendar's title bar / toolbar zone
-            let draggableTop = frame.maxY
-            let draggableBottom = draggableTop - Self.draggableAreaHeight
-            if mouseLoc.x >= frame.minX && mouseLoc.x <= frame.maxX &&
-               mouseLoc.y >= draggableBottom && mouseLoc.y <= draggableTop {
-                fadeOutAndStartMoving(window)
-            }
-        case .leftMouseDragged:
-            // Fallback: if a drag is happening anywhere in the overlay frame,
-            // the window is likely being moved (catches edge-drag resize too)
-            if frame.contains(mouseLoc) {
-                fadeOutAndStartMoving(window)
-            }
-        default:
-            break
+        // If a drag is happening in the overlay frame area, the window is likely
+        // being moved or resized — fade out immediately
+        if window.frame.contains(mouseLoc) {
+            fadeOutAndStartMoving(window)
         }
     }
 
