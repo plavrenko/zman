@@ -9,15 +9,21 @@ A minimalistic macOS utility that colors the Calendar app with an overlay indica
 
 ## Requirements
 
-- macOS (built with SwiftUI)
-- Accessibility permissions (to detect Calendar.app windows)
+- macOS 26 or later
+- Xcode 26.2 or later (to build from source)
 
 ## Installation
 
-1. Clone this repository
-2. Open `Zman-claude.xcodeproj` in Xcode
-3. Build and run the project
-4. Grant Accessibility permissions when prompted (needed to detect Calendar.app)
+Build from source:
+
+```bash
+git clone https://github.com/plavrenko/zman.git
+cd zman
+xcodebuild -project Zman-claude.xcodeproj -scheme Zman-claude -configuration Release build
+open build/Release/Zman-claude.app
+```
+
+Or open `Zman-claude.xcodeproj` in Xcode and press **Cmd+R**.
 
 ## How It Works
 
@@ -36,7 +42,8 @@ Zman only reads Calendar.app's timezone preferences from your system. It does no
 
 Built with:
 - SwiftUI
-- AppKit (macOS integration, window overlays, Accessibility API)
+- AppKit (overlay windows, workspace monitoring)
+- CoreGraphics (CGWindowList API for window tracking)
 - UserDefaults (reading Calendar.app preferences)
 
 ## Author
