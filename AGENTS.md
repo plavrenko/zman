@@ -59,6 +59,9 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 - AppDelegate owns app-lifetime managers (CalendarOverlayManager)
 - @AppStorage for UserDefaults bindings
 - Notification-driven updates with adaptive safety-net timer (1s when Calendar frontmost, 5s otherwise)
+- Overlay visible whenever Calendar window is on-screen and unobstructed (not just when Calendar is frontmost)
+- Occlusion detection via `CGWindowListCopyWindowInfo(.optionOnScreenAboveWindow)` — hides overlay if any layer-0 window intersects Calendar's frame (filters out own overlay by window number)
+- Workspace notifications for Space switches, app hide/unhide to react immediately to visibility changes
 - Adaptive position tracking: 1s idle poll, overlay hides on move, fades back on settle
 - Global mouse monitor (`NSEvent.addGlobalMonitorForEvents`) for instant drag detection — fades overlay out on title bar click without waiting for position poll
 - CGWindowList API with cached window ID for single-window queries
@@ -77,8 +80,8 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 - `[weak self]` in Timer and notification closures
 - Explicit cleanup in stopMonitoring/deinit
 - Timer tolerance set on all timers to allow macOS coalescing
-- Cached Calendar.app PID to avoid repeated runningApplications scans
-- Cached CGWindowID for single-window queries instead of enumerating all windows
+- Cached Calendar.app PID (`resolveCalendarPID()` helper with `kill(pid, 0)` validation) to avoid repeated runningApplications scans
+- Cached CGWindowID and CG-coordinate frame for single-window queries and occlusion checks
 - Notification observer tokens stored and properly removed on cleanup
 
 ## Do Not
@@ -102,5 +105,6 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 - TeamTimeZoneManager is a struct with only static methods—could be enum or namespace instead.
 - **Timer polling rationale**: Calendar.app doesn't reliably post notifications when timezone preferences change in com.apple.iCal UserDefaults suite. Primary detection uses UserDefaults.didChangeNotification and NSWorkspace.didActivateApplicationNotification, with an adaptive safety-net timer (1s when Calendar is frontmost — where timezone changes happen — 5s otherwise). Position tracking idle ticks also re-check mismatch for immediate overlay removal.
 - **Position tracking strategy**: Adaptive two-speed polling — 1s idle to detect movement start, 0.15s while moving to detect stop. Overlay fades out on movement, fades in at final position. CGWindowList with cached window ID for single-window queries. Global mouse monitor detects title bar/toolbar clicks (78pt draggable area) and drag events for instant fade-out without waiting for the 1s idle poll.
+- **Visibility strategy**: Overlay shows when Calendar window is on-screen AND unobstructed — not just when Calendar is the frontmost app. `isCalendarWindowOnScreen()` checks CGWindowList with `.optionOnScreenOnly` (excludes minimized, other-Space, hidden windows). `isCalendarWindowOccluded()` uses `.optionOnScreenAboveWindow` to get windows above Calendar in z-order and checks geometric intersection. Own overlay window is filtered out by comparing `kCGWindowNumber` to `overlayWindow?.windowNumber`. All CG frames use top-left origin coordinates for consistent comparison.
 - No error handling for CGWindowList failures—overlay silently fails if screen recording permission unavailable.
 - App stays running when window closed (AppDelegate prevents termination)—typical menu bar app pattern.
