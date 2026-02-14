@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Safety-net timer now adapts to context: 1s when Calendar is frontmost (where timezone changes happen), 5s otherwise — reduces worst-case timezone detection from ~7.5s to ~1s
+- Position tracking idle ticks re-check timezone mismatch for immediate overlay removal
 - Reduced position tracking timer from 0.1s to 1.0s (was 30 Accessibility API calls/sec, now 3)
 - Reduced main monitoring timer from 0.5s to 5.0s safety-net (notifications are primary trigger)
 - Replaced CalendarTimeZoneService 2s polling timer with notification-based updates
