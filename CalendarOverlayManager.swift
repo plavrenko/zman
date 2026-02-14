@@ -60,6 +60,7 @@ class CalendarOverlayManager: NSObject {
         isMonitoring = false
         timer?.invalidate()
         timer = nil
+        stopMouseMonitor()
         hideOverlay()
         NSWorkspace.shared.notificationCenter.removeObserver(self)
         NotificationCenter.default.removeObserver(self)
@@ -155,16 +156,76 @@ class CalendarOverlayManager: NSObject {
         overlayWindow = window
         window.orderFront(nil)
 
-        // Start updating position
+        // Start updating position and listening for drag
         startPositionTracking()
+        startMouseMonitor()
     }
 
     private func hideOverlay() {
+        stopMouseMonitor()
         overlayWindow?.orderOut(nil)
         overlayWindow = nil
         calendarPID = 0
         stopPositionTracking()
     }
+
+    // MARK: - Global mouse monitor for instant drag detection
+
+    private var mouseMonitor: Any?
+
+    // Title bar + toolbar height — Calendar.app uses unified style (~52-78pt).
+    // Using generous value to catch all draggable areas.
+    private static let draggableAreaHeight: CGFloat = 78
+
+    private func startMouseMonitor() {
+        stopMouseMonitor()
+        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged]) { [weak self] event in
+            self?.handleGlobalMouse(event)
+        }
+    }
+
+    private func stopMouseMonitor() {
+        if let monitor = mouseMonitor {
+            NSEvent.removeMonitor(monitor)
+            mouseMonitor = nil
+        }
+    }
+
+    private func handleGlobalMouse(_ event: NSEvent) {
+        guard let window = overlayWindow, !isMoving else { return }
+        let mouseLoc = NSEvent.mouseLocation
+        let frame = window.frame
+
+        switch event.type {
+        case .leftMouseDown:
+            // Check if click is in Calendar's title bar / toolbar zone
+            let draggableTop = frame.maxY
+            let draggableBottom = draggableTop - Self.draggableAreaHeight
+            if mouseLoc.x >= frame.minX && mouseLoc.x <= frame.maxX &&
+               mouseLoc.y >= draggableBottom && mouseLoc.y <= draggableTop {
+                fadeOutAndStartMoving(window)
+            }
+        case .leftMouseDragged:
+            // Fallback: if a drag is happening anywhere in the overlay frame,
+            // the window is likely being moved (catches edge-drag resize too)
+            if frame.contains(mouseLoc) {
+                fadeOutAndStartMoving(window)
+            }
+        default:
+            break
+        }
+    }
+
+    private func fadeOutAndStartMoving(_ window: NSWindow) {
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.1
+            window.animator().alphaValue = 0
+        }
+        isMoving = true
+        scheduleTimer(interval: Self.movingInterval)
+    }
+
+    // MARK: - Position tracking
 
     private var positionTimer: Timer?
     private var lastFrame: CGRect = .zero

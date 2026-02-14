@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cached Calendar.app window ID for single-window queries via `CGWindowListCreateDescriptionFromArray`
 - Overlay now hides during Calendar window movement and reappears at final position (adaptive two-speed polling: 1s idle / 0.15s moving)
 - Added fade-out (0.15s) and fade-in (0.2s) animations using NSAnimationContext for smooth overlay transitions
+- Added global mouse monitor for instant drag detection — overlay fades out immediately on title bar/toolbar click instead of waiting for 1s idle poll
+- Drag detection covers 78pt draggable area (title bar + toolbar) with leftMouseDragged fallback for edge cases
 
 ### Fixed
 - Fixed notification observer leak in CalendarTimeZoneService (token was discarded, observer never removed)
