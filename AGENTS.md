@@ -92,7 +92,7 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 - **Do not show windows on all spaces**: Overlay uses `.canJoinAllSpaces` but main window does not.
 - **Do not make overlay clickable**: `.ignoresMouseEvents = true` is critical—overlay must be non-intrusive.
 - **Do not change UserDefaults suite names**: `com.apple.iCal` suite is required for reading Calendar settings.
-- **Do not simplify coordinate conversion**: Screen coordinate conversion (top-left → bottom-left origin) is necessary for CGWindowList → NSWindow mapping.
+- **Do not simplify coordinate conversion**: Screen coordinate conversion (top-left → bottom-left origin) is necessary for CGWindowList → NSWindow mapping. Must use `NSScreen.screens.first` (primary screen), never `NSScreen.main` (focused screen) — the CG/NS coordinate systems are defined relative to the primary screen.
 - **Do not remove overlay fade animations**: The 0.15s fade-out / 0.2s fade-in masks the 1s idle poll detection delay and makes movement feel intentional.
 
 ## Additional Notes

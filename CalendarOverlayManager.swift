@@ -284,10 +284,10 @@ class CalendarOverlayManager: NSObject {
     }
 
     private func convertToNSWindowCoords(x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat) -> CGRect {
-        guard let screen = NSScreen.main else {
+        guard let primaryScreen = NSScreen.screens.first else {
             return CGRect(x: x, y: y, width: w, height: h)
         }
-        let convertedY = screen.frame.height - y - h
+        let convertedY = primaryScreen.frame.height - y - h
         return CGRect(x: x, y: convertedY, width: w, height: h)
     }
 
