@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Overlay now shows whenever Calendar window is visible and unobstructed, even when Calendar is not the frontmost app
+- Occlusion detection: overlay hides when any window overlaps Calendar's frame, reappears when Calendar is uncovered
+- Workspace notifications for Space switches (`activeSpaceDidChangeNotification`) and app hide/unhide for instant visibility reaction
+- `resolveCalendarPID()` helper with PID caching and `kill(pid, 0)` validation
+
 ### Changed
 - Safety-net timer now adapts to context: 1s when Calendar is frontmost (where timezone changes happen), 5s otherwise — reduces worst-case timezone detection from ~7.5s to ~1s
 - Position tracking idle ticks re-check timezone mismatch for immediate overlay removal

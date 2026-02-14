@@ -7,12 +7,15 @@
 
 import AppKit
 import SwiftUI
+
 /// Manages an overlay window that appears on top of Calendar.app when there's a timezone mismatch
 class CalendarOverlayManager: NSObject {
     private var overlayWindow: NSWindow?
     private var timer: Timer?
     private var isMonitoring = false
     private var calendarPID: pid_t = 0
+    /// Calendar window frame in CG coordinates (top-left origin), cached by isCalendarWindowOnScreen()
+    private var cachedCalendarCGFrame: CGRect?
 
     /// Start monitoring and showing overlay when needed
     func startMonitoring() {
@@ -46,6 +49,28 @@ class CalendarOverlayManager: NSObject {
             object: nil
         )
 
+        // Catch Space switches — Calendar may appear/disappear from current Space
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(workspaceChanged),
+            name: NSWorkspace.activeSpaceDidChangeNotification,
+            object: nil
+        )
+
+        // Catch Cmd+H hide/unhide — Calendar window leaves/joins on-screen list
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(workspaceChanged),
+            name: NSWorkspace.didHideApplicationNotification,
+            object: nil
+        )
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(workspaceChanged),
+            name: NSWorkspace.didUnhideApplicationNotification,
+            object: nil
+        )
+
         // Listen for UserDefaults changes (both iCal and our app)
         NotificationCenter.default.addObserver(
             self,
@@ -74,6 +99,9 @@ class CalendarOverlayManager: NSObject {
         guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
               app.bundleIdentifier == "com.apple.iCal" else { return }
         hideOverlay()
+        calendarPID = 0
+        calendarWindowID = kCGNullWindowID
+        cachedCalendarCGFrame = nil
     }
 
     @objc private func userDefaultsChanged() {
@@ -98,12 +126,16 @@ class CalendarOverlayManager: NSObject {
     }
 
     private func updateOverlay() {
-        let shouldShow = isCalendarAppFrontmost() && TeamTimeZoneManager.isCalendarTimezoneMismatch()
-
-        if shouldShow {
-            showOverlay()
-        } else {
+        guard TeamTimeZoneManager.isCalendarTimezoneMismatch(),
+              isCalendarWindowOnScreen() else {
             hideOverlay()
+            return
+        }
+
+        if isCalendarWindowOccluded() {
+            hideOverlay()
+        } else {
+            showOverlay()
         }
     }
 
@@ -114,19 +146,98 @@ class CalendarOverlayManager: NSObject {
         return frontmostApp.bundleIdentifier == "com.apple.iCal"
     }
 
+    /// Resolve Calendar.app PID, using cache when available.
+    /// Returns 0 if Calendar is not running.
+    private func resolveCalendarPID() -> pid_t {
+        if calendarPID != 0 {
+            // Check if cached PID is still valid (process exists)
+            if kill(calendarPID, 0) == 0 { return calendarPID }
+            calendarPID = 0
+            calendarWindowID = kCGNullWindowID
+        }
+        guard let app = NSWorkspace.shared.runningApplications.first(where: {
+            $0.bundleIdentifier == "com.apple.iCal"
+        }) else { return 0 }
+        calendarPID = app.processIdentifier
+        return calendarPID
+    }
+
+    /// Check if Calendar.app has a window visible on the current Space.
+    /// Uses CGWindowList with .optionOnScreenOnly which excludes minimized,
+    /// other-Space, and off-screen windows. Also caches the window ID.
+    private func isCalendarWindowOnScreen() -> Bool {
+        let pid = resolveCalendarPID()
+        guard pid != 0 else { return false }
+
+        guard let windowList = CGWindowListCopyWindowInfo(
+            [.optionOnScreenOnly, .excludeDesktopElements],
+            kCGNullWindowID
+        ) as? [[CFString: Any]] else { return false }
+
+        for entry in windowList {
+            guard let ownerPID = entry[kCGWindowOwnerPID] as? pid_t,
+                  ownerPID == pid,
+                  let layer = entry[kCGWindowLayer] as? Int, layer == 0 else {
+                continue
+            }
+            // Cache window ID and CG frame as side effects
+            if let wid = entry[kCGWindowNumber] as? CGWindowID {
+                calendarWindowID = wid
+            }
+            if let bounds = entry[kCGWindowBounds] as? [String: CGFloat],
+               let x = bounds["X"], let y = bounds["Y"],
+               let w = bounds["Width"], let h = bounds["Height"] {
+                cachedCalendarCGFrame = CGRect(x: x, y: y, width: w, height: h)
+            }
+            return true
+        }
+        cachedCalendarCGFrame = nil
+        return false
+    }
+
+    /// Check if any other window overlaps Calendar's frame.
+    /// Uses .optionOnScreenAboveWindow to get only windows above Calendar in z-order.
+    private func isCalendarWindowOccluded() -> Bool {
+        guard calendarWindowID != kCGNullWindowID,
+              let calendarCGFrame = cachedCalendarCGFrame else {
+            return false
+        }
+
+        guard let windowsAbove = CGWindowListCopyWindowInfo(
+            [.optionOnScreenAboveWindow, .excludeDesktopElements],
+            calendarWindowID
+        ) as? [[CFString: Any]] else { return false }
+
+        let overlayWinNum = overlayWindow.map { CGWindowID($0.windowNumber) }
+
+        for entry in windowsAbove {
+            let wid = entry[kCGWindowNumber] as? CGWindowID ?? 0
+
+            // Skip our own overlay window
+            if wid == overlayWinNum { continue }
+            // Skip non-standard layers (menu bar, dock, system UI elements)
+            guard let layer = entry[kCGWindowLayer] as? Int, layer == 0 else { continue }
+
+            guard let bounds = entry[kCGWindowBounds] as? [String: CGFloat],
+                  let x = bounds["X"], let y = bounds["Y"],
+                  let w = bounds["Width"], let h = bounds["Height"] else {
+                continue
+            }
+            let windowRect = CGRect(x: x, y: y, width: w, height: h)
+            if windowRect.intersects(calendarCGFrame) {
+                return true
+            }
+        }
+        return false
+    }
+
     private func showOverlay() {
         // If overlay already exists, just update its position
         if overlayWindow != nil {
             return
         }
 
-        // Cache Calendar.app PID to avoid scanning runningApplications on every position tick
-        guard let calendarApp = NSWorkspace.shared.runningApplications.first(where: {
-            $0.bundleIdentifier == "com.apple.iCal"
-        }) else {
-            return
-        }
-        calendarPID = calendarApp.processIdentifier
+        guard resolveCalendarPID() != 0 else { return }
 
         // Get Calendar.app window frame
         guard let calendarFrame = getCalendarWindowFrame() else {
@@ -165,7 +276,8 @@ class CalendarOverlayManager: NSObject {
         stopMouseMonitor()
         overlayWindow?.orderOut(nil)
         overlayWindow = nil
-        calendarPID = 0
+        // Don't clear calendarPID here — the overlay may re-appear when occlusion
+        // clears. PID is cleared when Calendar actually quits (appTerminated).
         stopPositionTracking()
     }
 
@@ -250,7 +362,9 @@ class CalendarOverlayManager: NSObject {
     private func stopPositionTracking() {
         positionTimer?.invalidate()
         positionTimer = nil
-        calendarWindowID = kCGNullWindowID
+        // Don't clear calendarWindowID — it's used by isCalendarWindowOccluded()
+        // and isCalendarWindowOnScreen() even when overlay is hidden.
+        // It's cleared when Calendar quits (appTerminated).
     }
 
     private func scheduleTimer(interval: TimeInterval) {
@@ -282,11 +396,12 @@ class CalendarOverlayManager: NSObject {
                 scheduleTimer(interval: Self.idleInterval)
             }
 
-            // Re-check timezone mismatch on idle ticks (~1s) — cross-process
-            // UserDefaults changes don't fire notifications reliably, so this
-            // catches timezone changes much faster than the 5s safety-net timer
-            if !isMoving && !TeamTimeZoneManager.isCalendarTimezoneMismatch() {
-                hideOverlay()
+            // Re-check visibility on idle ticks (~1s) — catches timezone changes
+            // and occlusion changes (windows covering/uncovering Calendar)
+            if !isMoving {
+                if !TeamTimeZoneManager.isCalendarTimezoneMismatch() || isCalendarWindowOccluded() {
+                    hideOverlay()
+                }
             }
         } else {
             // Window is moving — fade out overlay and speed up polling to detect stop
