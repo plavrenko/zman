@@ -234,16 +234,8 @@ class CalendarOverlayManager: NSObject {
     }
 
     private func showOverlay() {
-        // If overlay already exists, ensure it's visible (mouse monitor may have faded it out)
-        if let window = overlayWindow {
-            if window.alphaValue < 1 && !isMoving {
-                NSAnimationContext.runAnimationGroup { context in
-                    context.duration = 0.2
-                    window.animator().alphaValue = 1
-                }
-            }
-            return
-        }
+        // If overlay already exists, just keep it
+        if overlayWindow != nil { return }
 
         guard resolveCalendarPID() != 0 else { return }
 
@@ -275,7 +267,7 @@ class CalendarOverlayManager: NSObject {
         overlayWindow = window
         window.orderFront(nil)
 
-        // Start updating position and listening for drag
+        // Start updating position to track Calendar window movement
         startPositionTracking()
         startMouseMonitor()
     }
@@ -289,7 +281,7 @@ class CalendarOverlayManager: NSObject {
         stopPositionTracking()
     }
 
-    // MARK: - Global mouse monitor for instant drag detection
+    // MARK: - Global mouse monitor for fast drag detection
 
     private var mouseMonitor: Any?
 
@@ -299,9 +291,7 @@ class CalendarOverlayManager: NSObject {
 
     private func startMouseMonitor() {
         stopMouseMonitor()
-        // Only react to actual drags, not clicks — toolbar button clicks (timezone
-        // picker, view selector) should not trigger fade-out.
-        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDragged) { [weak self] event in
+        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDragged]) { [weak self] event in
             self?.handleGlobalMouse(event)
         }
     }
@@ -316,20 +306,23 @@ class CalendarOverlayManager: NSObject {
     private func handleGlobalMouse(_ event: NSEvent) {
         guard let window = overlayWindow, !isMoving else { return }
         let mouseLoc = NSEvent.mouseLocation
-        // If a drag is happening in the overlay frame area, the window is likely
-        // being moved or resized — fade out immediately
-        if window.frame.contains(mouseLoc) {
-            fadeOutAndStartMoving(window)
-        }
-    }
+        let frame = window.frame
 
-    private func fadeOutAndStartMoving(_ window: NSWindow) {
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.1
-            window.animator().alphaValue = 0
+        // Drag in draggable area (title bar / toolbar) — likely a window drag.
+        // Fade out immediately and switch to fast polling. checkPosition()
+        // detects when the window stops and fades overlay back in.
+        let draggableTop = frame.maxY
+        let draggableBottom = draggableTop - Self.draggableAreaHeight
+        if mouseLoc.x >= frame.minX && mouseLoc.x <= frame.maxX &&
+           mouseLoc.y >= draggableBottom && mouseLoc.y <= draggableTop {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.1
+                window.animator().alphaValue = 0
+            }
+            isMoving = true
+            settleCount = 0
+            scheduleTimer(interval: Self.movingInterval)
         }
-        isMoving = true
-        scheduleTimer(interval: Self.movingInterval)
     }
 
     // MARK: - Position tracking
