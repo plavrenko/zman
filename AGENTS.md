@@ -60,6 +60,7 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 - @AppStorage for UserDefaults bindings
 - Notification-driven updates with adaptive safety-net timer (1s when Calendar frontmost, 5s otherwise)
 - Adaptive position tracking: 1s idle poll, overlay hides on move, fades back on settle
+- Global mouse monitor (`NSEvent.addGlobalMonitorForEvents`) for instant drag detection — fades overlay out on title bar click without waiting for position poll
 - CGWindowList API with cached window ID for single-window queries
 - UserDefaults suite access for reading Calendar.app preferences
 - NSAnimationContext for GPU-accelerated fade transitions
@@ -94,11 +95,12 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 - **Do not change UserDefaults suite names**: `com.apple.iCal` suite is required for reading Calendar settings.
 - **Do not simplify coordinate conversion**: Screen coordinate conversion (top-left → bottom-left origin) is necessary for CGWindowList → NSWindow mapping. Must use `NSScreen.screens.first` (primary screen), never `NSScreen.main` (focused screen) — the CG/NS coordinate systems are defined relative to the primary screen.
 - **Do not remove overlay fade animations**: The 0.15s fade-out / 0.2s fade-in masks the 1s idle poll detection delay and makes movement feel intentional.
+- **Do not reduce draggable area height (78pt)**: Calendar.app uses a unified title bar + toolbar (~52-78pt). The generous 78pt value catches all draggable areas including toolbar buttons and spacing.
 
 ## Additional Notes
 
 - TeamTimeZoneManager is a struct with only static methods—could be enum or namespace instead.
 - **Timer polling rationale**: Calendar.app doesn't reliably post notifications when timezone preferences change in com.apple.iCal UserDefaults suite. Primary detection uses UserDefaults.didChangeNotification and NSWorkspace.didActivateApplicationNotification, with an adaptive safety-net timer (1s when Calendar is frontmost — where timezone changes happen — 5s otherwise). Position tracking idle ticks also re-check mismatch for immediate overlay removal.
-- **Position tracking strategy**: Adaptive two-speed polling — 1s idle to detect movement start, 0.15s while moving to detect stop. Overlay fades out on movement, fades in at final position. CGWindowList with cached window ID for single-window queries.
+- **Position tracking strategy**: Adaptive two-speed polling — 1s idle to detect movement start, 0.15s while moving to detect stop. Overlay fades out on movement, fades in at final position. CGWindowList with cached window ID for single-window queries. Global mouse monitor detects title bar/toolbar clicks (78pt draggable area) and drag events for instant fade-out without waiting for the 1s idle poll.
 - No error handling for CGWindowList failures—overlay silently fails if screen recording permission unavailable.
 - App stays running when window closed (AppDelegate prevents termination)—typical menu bar app pattern.
