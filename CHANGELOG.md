@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Overlay now hides immediately when Calendar.app quits (was delayed up to 5s)
 - Changed `setFrame(display: true)` to `display: false` — eliminates forced synchronous redraw every 1s
 - Added safety deinit to CalendarTimeZoneService for observer cleanup
+- Fixed multi-screen overlay positioning — used `NSScreen.screens.first` (primary screen) instead of `NSScreen.main` (focused screen) for CG→NS coordinate conversion
 
 ### Removed
 - Deleted unused AboutView.swift (75 lines of dead code)
