@@ -5,7 +5,7 @@ All notable changes to Zman will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.0] - 2026-02-15
 
 ### Added
 - Overlay now shows whenever Calendar window is visible and unobstructed, even when Calendar is not the frontmost app
@@ -53,6 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## Release Notes
+
+### Version 1.1.0
+Smarter overlay visibility: shows whenever Calendar is visible on screen (not just when focused), hides when any window covers it. Replaced Accessibility API with CGWindowList for much lower overhead. Numerous performance and reliability fixes.
 
 ### Version 1.0.0
 First public release of Zman, a minimalistic utility that colors iCal with overlay if it differs from remote team's timezone.
