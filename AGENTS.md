@@ -58,7 +58,7 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 - ObservableObject for UI-bound services (CalendarTimeZoneService)
 - AppDelegate owns app-lifetime managers (CalendarOverlayManager)
 - @AppStorage for UserDefaults bindings
-- Notification-driven updates with safety-net timer (5s) for edge cases
+- Notification-driven updates with adaptive safety-net timer (1s when Calendar frontmost, 5s otherwise)
 - Adaptive position tracking: 1s idle poll, overlay hides on move, fades back on settle
 - CGWindowList API with cached window ID for single-window queries
 - UserDefaults suite access for reading Calendar.app preferences
@@ -85,7 +85,7 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 - **Do not use EventKit**: Despite README mention, no EventKit access in code. App reads Calendar.app UserDefaults, not calendar events.
 - **Do not switch back to Accessibility API for position tracking**: CGWindowList is significantly lighter than AXUIElement cross-process IPC. AX API is no longer used.
 - **Do not change overlay opacity/color**: Fixed at `Color.orange.opacity(0.15)` - this is the core UX.
-- **Do not remove safety-net timer**: Calendar.app does not reliably post notifications for timezone preference changes. The 5s safety-net timer catches edge cases that UserDefaults.didChangeNotification misses for the com.apple.iCal suite.
+- **Do not remove safety-net timer**: Calendar.app does not reliably post notifications for timezone preference changes. The adaptive safety-net timer (1s when Calendar frontmost, 5s otherwise) catches edge cases that UserDefaults.didChangeNotification misses for the com.apple.iCal suite.
 - **Do not access calendar events**: This is a timezone indicator, not an event reader.
 - **Do not change bundle ID references**: `com.apple.iCal` is hardcoded for Calendar.app detection.
 - **Do not remove AppDelegate**: Prevents app quit on window close—essential for menu bar utility behavior.
@@ -98,7 +98,7 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 ## Additional Notes
 
 - TeamTimeZoneManager is a struct with only static methods—could be enum or namespace instead.
-- **Timer polling rationale**: Calendar.app doesn't reliably post notifications when timezone preferences change in com.apple.iCal UserDefaults suite. Primary detection uses UserDefaults.didChangeNotification and NSWorkspace.didActivateApplicationNotification, with a 5s safety-net timer for edge cases.
+- **Timer polling rationale**: Calendar.app doesn't reliably post notifications when timezone preferences change in com.apple.iCal UserDefaults suite. Primary detection uses UserDefaults.didChangeNotification and NSWorkspace.didActivateApplicationNotification, with an adaptive safety-net timer (1s when Calendar is frontmost — where timezone changes happen — 5s otherwise). Position tracking idle ticks also re-check mismatch for immediate overlay removal.
 - **Position tracking strategy**: Adaptive two-speed polling — 1s idle to detect movement start, 0.15s while moving to detect stop. Overlay fades out on movement, fades in at final position. CGWindowList with cached window ID for single-window queries.
 - No error handling for CGWindowList failures—overlay silently fails if screen recording permission unavailable.
 - App stays running when window closed (AppDelegate prevents termination)—typical menu bar app pattern.

@@ -22,11 +22,13 @@ class CalendarOverlayManager: NSObject {
         // Check immediately
         updateOverlay()
 
-        // Safety-net timer: notifications handle most changes, this catches edge cases
-        timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            self?.updateOverlay()
+        // Safety-net timer: cross-process UserDefaults changes don't fire notifications
+        // reliably, so poll for timezone mismatch. Fast (1s) when Calendar is frontmost
+        // (where timezone changes happen), slow (5s) when it's not.
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.safetyNetCheck()
         }
-        timer?.tolerance = 2.5
+        timer?.tolerance = 0.3
 
         // Also listen for workspace notifications
         NSWorkspace.shared.notificationCenter.addObserver(
@@ -75,6 +77,23 @@ class CalendarOverlayManager: NSObject {
 
     @objc private func userDefaultsChanged() {
         updateOverlay()
+    }
+
+    private var safetyNetSkipCount = 0
+
+    private func safetyNetCheck() {
+        // When Calendar is frontmost, check every tick (1s) — timezone changes happen here
+        if isCalendarAppFrontmost() {
+            safetyNetSkipCount = 0
+            updateOverlay()
+            return
+        }
+        // When Calendar is not frontmost, only check every 5th tick (~5s) to save CPU
+        safetyNetSkipCount += 1
+        if safetyNetSkipCount >= 5 {
+            safetyNetSkipCount = 0
+            updateOverlay()
+        }
     }
 
     private func updateOverlay() {
@@ -200,6 +219,13 @@ class CalendarOverlayManager: NSObject {
                 }
                 isMoving = false
                 scheduleTimer(interval: Self.idleInterval)
+            }
+
+            // Re-check timezone mismatch on idle ticks (~1s) — cross-process
+            // UserDefaults changes don't fire notifications reliably, so this
+            // catches timezone changes much faster than the 5s safety-net timer
+            if !isMoving && !TeamTimeZoneManager.isCalendarTimezoneMismatch() {
+                hideOverlay()
             }
         } else {
             // Window is moving — fade out overlay and speed up polling to detect stop
