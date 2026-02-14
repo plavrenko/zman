@@ -100,6 +100,16 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 - **Do not remove overlay fade animations**: The 0.15s fade-out / 0.2s fade-in masks the 1s idle poll detection delay and makes movement feel intentional.
 - **Do not use leftMouseDown for drag detection**: Only `leftMouseDragged` in the draggable area (top 78pt) should trigger overlay fade-out. Using mouseDown causes false triggers on toolbar button clicks. Detecting drags in the full frame area causes false triggers on in-app drags (text selection, event dragging).
 
+## Build & Release
+
+- **Build**: `xcodebuild -project Zman-claude.xcodeproj -scheme Zman-claude -configuration Release build`
+- **Versioning**: SemVer. `MARKETING_VERSION` (user-facing, e.g. `1.1`) and `CURRENT_PROJECT_VERSION` (build number) in `project.pbxproj`. Bump both in Debug and Release configs.
+- **Changelog**: `CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com). Use `[Unreleased]` for in-progress work, move to `[X.Y.Z] - YYYY-MM-DD` on release.
+- **Tags**: `vX.Y.Z` on the version bump commit (e.g. `v1.1.0`).
+- **Distribution**: Source-only (build from source). No binary releases — the app is not notarized, so downloaded binaries get blocked by Gatekeeper.
+- **Do not attach binary artifacts to GitHub releases**: Without notarization, macOS quarantines downloaded `.app` bundles and refuses to open them.
+- **Sandbox**: `ENABLE_APP_SANDBOX = NO`. CGWindowList API requires non-sandboxed app. No Screen Recording permission prompt — works silently for non-sandboxed apps.
+
 ## Additional Notes
 
 - TeamTimeZoneManager is a struct with only static methods—could be enum or namespace instead.
