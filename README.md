@@ -2,6 +2,8 @@
 
 A minimalistic macOS utility that colors the Calendar app with an overlay indicator when your Calendar app timezone differs from your remote team's timezone.
 
+![Zman overlay on Calendar.app](docs/screenshot.png)
+
 ## Features
 
 - Detects timezone differences between Calendar.app's viewing timezone and your team's timezone
