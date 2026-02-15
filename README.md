@@ -38,6 +38,10 @@ The app allows you to:
 
 Zman only reads Calendar.app's timezone preferences from your system. It does not access your calendar events or any personal data. No data is sent to external servers or stored outside of your Mac.
 
+## Architecture
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams — C4 context/component, data flow, and event/state flow.
+
 ## Development
 
 Built with:

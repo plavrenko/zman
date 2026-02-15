@@ -8,6 +8,8 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 
 ## Architecture
 
+[ARCHITECTURE.md](ARCHITECTURE.md) contains Mermaid diagrams (C4, data flow, event/state flow) for human readers. **Do not load it into context** — it duplicates what's below in visual form and wastes tokens. **Do update it** when changing architecture.
+
 - **Pattern**: MVVM-like with ObservableObject managers
 - **Layer structure**:
   - UI Layer: SwiftUI views (ContentView, OverlayView)
