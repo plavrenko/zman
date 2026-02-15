@@ -112,12 +112,19 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 
 ## Build & Release
 
-- **Build**: `xcodebuild -project Zman-claude.xcodeproj -scheme Zman-claude -configuration Release build`
+- **Build**: `make build` (wraps xcodebuild). Or directly: `xcodebuild -project Zman-claude.xcodeproj -scheme Zman-claude -configuration Release SYMROOT=$(pwd)/build build`
+- **Build & run**: `make run` — builds, kills any running instance, launches the app
+- **Package**: `make release` — builds + creates `Zman-claude-X.Y.Z.zip` (version from pbxproj)
+- **Clean**: `make clean` — removes build/ and zip artifacts
+- **Full release**: `/release` Claude Code skill — runs pre-flight audit, build, user verification, then tags, uploads, and publishes the GitHub release. See `.claude/commands/release.md`.
 - **Versioning**: SemVer. `MARKETING_VERSION` (user-facing, e.g. `1.1`) and `CURRENT_PROJECT_VERSION` (build number) in `project.pbxproj`. Bump both in Debug and Release configs.
 - **Changelog**: `CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com). Use `[Unreleased]` for in-progress work, move to `[X.Y.Z] - YYYY-MM-DD` on release.
 - **Tags**: `vX.Y.Z` on the version bump commit (e.g. `v1.1.0`).
-- **Distribution**: Source-only (build from source). No binary releases — the app is not notarized, so downloaded binaries get blocked by Gatekeeper.
-- **Do not attach binary artifacts to GitHub releases**: Without notarization, macOS quarantines downloaded `.app` bundles and refuses to open them.
+- **Distribution**: Homebrew Cask (`brew install plavrenko/zman/zman`) or build from source. The app is not notarized — Homebrew Cask users must run `xattr -cr` after install. Source builds have no Gatekeeper issue.
+- **CI/CD**: GitHub Actions (`.github/workflows/`):
+  - `release.yml`: Creates a draft GitHub release when a `v*` tag is pushed
+  - `update-cask.yml`: Updates the Homebrew Cask formula in `homebrew-zman` when a release is published
+- **Homebrew tap**: Cask formula lives in a separate `homebrew-zman` repo. Template source of truth: `homebrew/zman.rb` in this repo.
 - **Sandbox**: `ENABLE_APP_SANDBOX = NO`. CGWindowList API requires non-sandboxed app. No Screen Recording permission prompt — works silently for non-sandboxed apps.
 
 ## Additional Notes

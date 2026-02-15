@@ -1,0 +1,47 @@
+name: Update Homebrew Cask
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-cask:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ github.event.release.tag_name }}"
+          version="${tag#v}"
+          # Download the zip asset (name may use 2-part or 3-part version)
+          gh release download "$tag" --repo "${{ github.repository }}" --pattern "Zman-claude-*.zip" --dir .
+          asset=$(ls Zman-claude-*.zip | head -1)
+          echo "asset=$asset" >> "$GITHUB_ENV"
+          echo "version=$version" >> "$GITHUB_ENV"
+
+      - name: Compute SHA256
+        run: |
+          sha=$(shasum -a 256 "$asset" | cut -d' ' -f1)
+          echo "sha256=$sha" >> "$GITHUB_ENV"
+
+      - name: Update Cask in tap repo
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          owner="${{ github.repository_owner }}"
+          tap_repo="${owner}/homebrew-zman"
+
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/${tap_repo}.git" tap
+          cd tap
+
+          # Update version, sha256, and url in the Cask file
+          sed -i "s/version \".*\"/version \"${version}\"/" Casks/zman.rb
+          sed -i "s/sha256 \".*\"/sha256 \"${sha256}\"/" Casks/zman.rb
+          sed -i "s|url \".*\"|url \"https://github.com/${GITHUB_REPOSITORY}/releases/download/v${version}/${asset}\"|" Casks/zman.rb
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/zman.rb
+          git commit -m "Update zman to ${version}"
+          git push

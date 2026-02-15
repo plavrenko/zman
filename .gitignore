@@ -11,10 +11,11 @@ DerivedData/
 # Swift Package Manager
 .build/
 
-# App packaging (not distributed as binary)
+# App packaging
 *.ipa
 *.dSYM.zip
 *.dSYM
+Zman-claude-*.zip
 
 # Claude Code local settings
 .claude/

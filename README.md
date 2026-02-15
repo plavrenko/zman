@@ -16,12 +16,24 @@ A minimalistic macOS utility that colors the Calendar app with an overlay indica
 
 ## Installation
 
-Build from source:
+### Homebrew (recommended)
+
+```bash
+brew install plavrenko/zman/zman
+```
+
+After installation, remove the quarantine attribute (the app is not notarized):
+
+```bash
+xattr -cr "$(brew --prefix)/Caskroom/zman/*/Zman-claude.app"
+```
+
+### Build from source
 
 ```bash
 git clone https://github.com/plavrenko/zman.git
 cd zman
-xcodebuild -project Zman-claude.xcodeproj -scheme Zman-claude -configuration Release build
+make build
 open build/Release/Zman-claude.app
 ```
 
