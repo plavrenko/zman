@@ -54,6 +54,14 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 - ObservableObjects marked with `@MainActor` where appropriate
 - Private members for internal manager state
 
+**Code comments**:
+- `///` doc comment on every type (class/struct/enum) — role and relationships
+- `///` on public/internal methods — the API surface a caller sees
+- `///` on non-obvious private methods — where the name doesn't fully explain behavior (e.g. state machines, multi-path logic)
+- Skip `///` on trivial private helpers where the name is self-documenting (e.g. `hideOverlay`, `stopMouseMonitor`)
+- Inline `//` comments for "why", not "what" — explain decisions, tradeoffs, non-obvious constraints
+- No DocC or formal documentation generation — comments are for humans and AI agents
+
 **Patterns**:
 - ObservableObject for UI-bound services (CalendarTimeZoneService)
 - AppDelegate owns app-lifetime managers (CalendarOverlayManager)

@@ -7,6 +7,8 @@
 
 import SwiftUI
 
+/// App entry point. Uses AppDelegate adaptor to own CalendarOverlayManager
+/// and prevent quit on last window close (background utility pattern).
 @main
 struct Zman_claudeApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate

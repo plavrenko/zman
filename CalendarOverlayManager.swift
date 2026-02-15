@@ -8,7 +8,11 @@
 import AppKit
 import SwiftUI
 
-/// Manages an overlay window that appears on top of Calendar.app when there's a timezone mismatch
+/// Manages a floating overlay window that tracks Calendar.app's position on screen.
+///
+/// Responsibilities: detecting Calendar visibility (on-screen, unobstructed), showing/hiding
+/// the overlay, tracking window movement with adaptive polling, and instant drag detection
+/// via a global mouse monitor. Owned by AppDelegate for app-lifetime scope.
 class CalendarOverlayManager: NSObject {
     private var overlayWindow: NSWindow?
     private var timer: Timer?
@@ -110,6 +114,9 @@ class CalendarOverlayManager: NSObject {
 
     private var safetyNetSkipCount = 0
 
+    /// Adaptive polling: 1s when Calendar is frontmost (timezone changes happen here),
+    /// every 5th tick (~5s) otherwise. Catches cross-process UserDefaults changes that
+    /// don't reliably fire notifications.
     private func safetyNetCheck() {
         // When Calendar is frontmost, check every tick (1s) — timezone changes happen here
         if isCalendarAppFrontmost() {
@@ -125,6 +132,7 @@ class CalendarOverlayManager: NSObject {
         }
     }
 
+    /// Central decision: show overlay if mismatch + on-screen + not occluded, hide otherwise.
     private func updateOverlay() {
         guard TeamTimeZoneManager.isCalendarTimezoneMismatch(),
               isCalendarWindowOnScreen() else {
@@ -233,6 +241,8 @@ class CalendarOverlayManager: NSObject {
         return false
     }
 
+    /// Create the overlay window and start position tracking + mouse monitor.
+    /// No-op if overlay already exists (idempotent).
     private func showOverlay() {
         // If overlay already exists, just keep it
         if overlayWindow != nil { return }
@@ -272,6 +282,7 @@ class CalendarOverlayManager: NSObject {
         startMouseMonitor()
     }
 
+    /// Tear down overlay window, mouse monitor, and position tracking.
     private func hideOverlay() {
         stopMouseMonitor()
         overlayWindow?.orderOut(nil)
@@ -303,6 +314,9 @@ class CalendarOverlayManager: NSObject {
         }
     }
 
+    /// Detect drag gestures in Calendar's draggable area (title bar / toolbar).
+    /// Fades overlay out immediately and switches to fast polling. If the window
+    /// didn't actually move (false trigger), checkPosition() fades it back in ~300ms.
     private func handleGlobalMouse(_ event: NSEvent) {
         guard let window = overlayWindow, !isMoving else { return }
         let mouseLoc = NSEvent.mouseLocation
@@ -363,6 +377,11 @@ class CalendarOverlayManager: NSObject {
         positionTimer?.tolerance = interval * 0.3
     }
 
+    /// Position tracking state machine. On each tick:
+    /// - Frame unchanged + isMoving → count settle frames, then fade in and go idle
+    /// - Frame unchanged + idle → re-check mismatch/occlusion, hide if needed
+    /// - Frame changed + idle → fade out, switch to fast polling
+    /// - Frame changed + isMoving → update lastFrame, reset settle counter
     private func checkPosition() {
         guard let window = overlayWindow,
               let calendarFrame = getCalendarWindowFrame() else {
@@ -426,6 +445,8 @@ class CalendarOverlayManager: NSObject {
         return nil
     }
 
+    /// Get Calendar's window frame in NS coordinates (bottom-left origin).
+    /// Fast path: single-window query by cached ID. Slow path: enumerate all windows.
     private func getCalendarWindowFrame() -> CGRect? {
         // Fast path: query a single known window ID directly
         if calendarWindowID != kCGNullWindowID {
@@ -473,6 +494,8 @@ class CalendarOverlayManager: NSObject {
         return convertToNSWindowCoords(x: x, y: y, w: w, h: h)
     }
 
+    /// Convert CG coordinates (top-left origin) to NS coordinates (bottom-left origin).
+    /// Uses primary screen height — CG/NS coordinate systems are defined relative to it.
     private func convertToNSWindowCoords(x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat) -> CGRect {
         guard let primaryScreen = NSScreen.screens.first else {
             return CGRect(x: x, y: y, width: w, height: h)

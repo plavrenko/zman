@@ -7,6 +7,8 @@
 
 import SwiftUI
 
+/// Settings window: shows Calendar's current timezone and lets the user pick their team timezone.
+/// Team timezone picker is populated from Calendar.app's recently used timezones.
 struct ContentView: View {
     @StateObject private var timeZoneService = CalendarTimeZoneService()
     @AppStorage("teamTimeZone") private var teamTimeZone: String = ""
