@@ -17,5 +17,6 @@ DerivedData/
 *.dSYM
 Zman-claude-*.zip
 
-# Claude Code local settings
-.claude/
+# Claude Code — ignore local settings, keep shared commands
+.claude/*
+!.claude/commands/
