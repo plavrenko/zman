@@ -1,6 +1,6 @@
 cask "zman" do
-  version "1.1.0"
-  sha256 "PLACEHOLDER"
+  version "1.2.0"
+  sha256 "f6502319e2563250f8763113774ded098d0409ed4dd6ea94b7a579fdf0d3ca9f"
 
   url "https://github.com/plavrenko/zman/releases/download/v#{version}/Zman-claude-#{version}.zip"
   name "Zman"
