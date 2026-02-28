@@ -5,6 +5,21 @@ All notable changes to Zman will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.2.0] - 2026-02-28
+
+### Changed
+- Improved overlay fade-out responsiveness for Calendar window interactions: move drag, resize drag, close (`Cmd+W` / traffic-light click), popup dismiss, and focus switches
+- Added short fast visibility-refresh bursts (50ms cadence) around close/dismiss transitions to avoid waiting for 1s idle polling
+- Added short post-show validation burst to prevent overlay lingering when Calendar window is opened then immediately closed
+
+### Fixed
+- Fixed delayed fade-out when resizing Calendar windows by edge/corner drag
+- Fixed delayed fade-out when closing Calendar popups (including `Esc` dismiss)
+- Fixed delayed fade-out when switching focus away from Calendar
+- Fixed intermittent overlay linger/flash during rapid open→close sequences
+
 ## [1.1.0] - 2026-02-15
 
 ### Added
@@ -53,6 +68,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## Release Notes
+
+### Version 1.2.0
+Improved overlay fade-out responsiveness across move, resize, close, dismiss, and focus-switch flows. Added fast transition refresh paths to avoid lingering overlays during rapid window changes.
 
 ### Version 1.1.0
 Smarter overlay visibility: shows whenever Calendar is visible on screen (not just when focused), hides when any window covers it. Replaced Accessibility API with CGWindowList for much lower overhead. Numerous performance and reliability fixes.
