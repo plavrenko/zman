@@ -26,7 +26,7 @@ brew install plavrenko/zman/zman
 After installation, remove the quarantine attribute (the app is not notarized):
 
 ```bash
-xattr -cr "$(brew --prefix)/Caskroom/zman/*/Zman-claude.app"
+xattr -cr "/Applications/Zman-claude.app"
 ```
 
 ### Build from source

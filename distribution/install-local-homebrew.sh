@@ -5,14 +5,47 @@ set -euo pipefail
 # Usage:
 #   ./distribution/install-local-homebrew.sh
 #   ./distribution/install-local-homebrew.sh --open
+#   ./distribution/install-local-homebrew.sh --help
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 OPEN_AFTER_INSTALL=0
 
-if [[ "${1:-}" == "--open" ]]; then
-  OPEN_AFTER_INSTALL=1
-fi
+show_help() {
+  cat <<'EOF'
+Build and install Zman locally via a temporary Homebrew cask tap.
+
+Usage:
+  ./distribution/install-local-homebrew.sh [--open] [--help]
+
+Options:
+  --open   Launch /Applications/Zman-claude.app after install.
+  --help   Show this help and exit.
+
+Notes:
+  - Creates/uses local tap: local/zman-local
+  - Installs cask token: zman-local
+  - Rebuilds release zip via make release
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --open)
+      OPEN_AFTER_INSTALL=1
+      shift
+      ;;
+    --help|-h)
+      show_help
+      exit 0
+      ;;
+    *)
+      echo "error: unknown argument: $1" >&2
+      echo "run with --help for usage" >&2
+      exit 1
+      ;;
+  esac
+done
 
 if ! command -v brew >/dev/null 2>&1; then
   echo "error: Homebrew is not installed." >&2
