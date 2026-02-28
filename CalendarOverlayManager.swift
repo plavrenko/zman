@@ -40,7 +40,7 @@ class CalendarOverlayManager: NSObject {
         // Also listen for workspace notifications
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
-            selector: #selector(workspaceChanged),
+            selector: #selector(activeAppChanged(_:)),
             name: NSWorkspace.didActivateApplicationNotification,
             object: nil
         )
@@ -97,6 +97,24 @@ class CalendarOverlayManager: NSObject {
 
     @objc private func workspaceChanged() {
         updateOverlay()
+    }
+
+    @objc private func activeAppChanged(_ notification: Notification) {
+        guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else {
+            updateOverlay()
+            return
+        }
+
+        // When focus leaves Calendar, fade quickly first, then re-evaluate after
+        // the new app's window stack has settled in CGWindowList.
+        if app.bundleIdentifier != "com.apple.iCal" {
+            fadeOutOverlayQuickly()
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.fastRefreshDelay) { [weak self] in
+                self?.updateOverlay()
+            }
+        } else {
+            updateOverlay()
+        }
     }
 
     @objc private func appTerminated(_ notification: Notification) {
@@ -280,10 +298,12 @@ class CalendarOverlayManager: NSObject {
         // Start updating position to track Calendar window movement
         startPositionTracking()
         startMouseMonitor()
+        scheduleInitialVisibilityValidation()
     }
 
     /// Tear down overlay window, mouse monitor, and position tracking.
     private func hideOverlay() {
+        initialValidationGeneration += 1
         stopMouseMonitor()
         overlayWindow?.orderOut(nil)
         overlayWindow = nil
@@ -292,18 +312,31 @@ class CalendarOverlayManager: NSObject {
         stopPositionTracking()
     }
 
-    // MARK: - Global mouse monitor for fast drag detection
+    // MARK: - Global input monitor for fast drag/close detection
 
     private var mouseMonitor: Any?
 
     // Title bar + toolbar height — Calendar.app uses unified style (~52-78pt).
     // Using generous value to catch all draggable areas.
     private static let draggableAreaHeight: CGFloat = 78
+    // Resize handles are near edges/corners; use a narrow border ring hit-test.
+    private static let resizeBorderThickness: CGFloat = 8
+    // Small outward tolerance improves edge detection at high pointer speed.
+    private static let resizeOuterTolerance: CGFloat = 2
+    // macOS traffic-light controls are in the top-left corner of titled windows.
+    private static let trafficLightAreaWidth: CGFloat = 96
+    private static let trafficLightAreaHeight: CGFloat = 32
+    private static let fastRefreshDelay: TimeInterval = 0.05
+    private static let fastRefreshAttempts = 6
+    private var fastRefreshGeneration = 0
+    private static let initialValidationDelay: TimeInterval = 0.05
+    private static let initialValidationAttempts = 6
+    private var initialValidationGeneration = 0
 
     private func startMouseMonitor() {
         stopMouseMonitor()
-        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDragged]) { [weak self] event in
-            self?.handleGlobalMouse(event)
+        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDragged, .leftMouseDown, .keyDown]) { [weak self] event in
+            self?.handleGlobalInput(event)
         }
     }
 
@@ -314,29 +347,199 @@ class CalendarOverlayManager: NSObject {
         }
     }
 
-    /// Detect drag gestures in Calendar's draggable area (title bar / toolbar).
-    /// Fades overlay out immediately and switches to fast polling. If the window
-    /// didn't actually move (false trigger), checkPosition() fades it back in ~300ms.
-    private func handleGlobalMouse(_ event: NSEvent) {
+    /// Detect drag gestures in Calendar windows and close actions.
+    /// - Drag in move/resize handles: fade overlay immediately and switch to fast polling.
+    /// - Close actions (traffic-light click or Cmd+W): trigger immediate visibility refresh.
+    private func handleGlobalInput(_ event: NSEvent) {
+        if event.type == .keyDown {
+            handleGlobalKeyDown(event)
+            return
+        }
+        if event.type == .leftMouseDown {
+            handleGlobalMouseDown(event)
+            return
+        }
+        handleGlobalMouseDragged(event)
+    }
+
+    private func handleGlobalMouseDragged(_ event: NSEvent) {
         guard let window = overlayWindow, !isMoving else { return }
         let mouseLoc = NSEvent.mouseLocation
-        let frame = window.frame
+        let targetFrame: CGRect
+        if window.frame.contains(mouseLoc) {
+            targetFrame = window.frame
+        } else if let hoveredCalendarFrame = calendarWindowFrameContaining(mouseLoc) {
+            // Calendar can switch active windows (e.g., event editor/info popup)
+            // while overlay/frame tracking catches up on the next position tick.
+            targetFrame = hoveredCalendarFrame
+        } else {
+            return
+        }
 
-        // Drag in draggable area (title bar / toolbar) — likely a window drag.
+        guard isMouseInMoveOrResizeHandle(mouseLoc, frame: targetFrame) else { return }
+
         // Fade out immediately and switch to fast polling. checkPosition()
         // detects when the window stops and fades overlay back in.
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.1
+            window.animator().alphaValue = 0
+        }
+        isMoving = true
+        settleCount = 0
+        scheduleTimer(interval: Self.movingInterval)
+    }
+
+    /// Detect non-drag close/dismiss interactions that should hide or retarget overlay quickly.
+    private func handleGlobalMouseDown(_ event: NSEvent) {
+        guard let overlay = overlayWindow else { return }
+        let mouseLoc = NSEvent.mouseLocation
+
+        // Popup-dismiss path: overlay is on one Calendar window (e.g. event info),
+        // user clicks another Calendar window area. Fade immediately instead of
+        // waiting for idle polling.
+        if !overlay.frame.contains(mouseLoc),
+           let hoveredFrame = calendarWindowFrameContaining(mouseLoc),
+           !areFramesApproximatelyEqual(overlay.frame, hoveredFrame) {
+            fadeOutOverlayQuickly()
+            scheduleFastVisibilityRefreshBurst()
+            return
+        }
+
+        let targetFrame: CGRect
+        if overlay.frame.contains(mouseLoc) {
+            let frame = overlay.frame
+            targetFrame = frame
+        } else if let frame = calendarWindowFrameContaining(mouseLoc) {
+            targetFrame = frame
+        } else {
+            return
+        }
+        guard isMouseInTrafficLightArea(mouseLoc, frame: targetFrame) else { return }
+        fadeOutOverlayQuickly()
+        scheduleFastVisibilityRefreshBurst()
+    }
+
+    /// Detect keyboard-driven window dismiss actions (`Esc`, `Cmd+W`).
+    private func handleGlobalKeyDown(_ event: NSEvent) {
+        guard overlayWindow != nil else { return }
+        guard isCalendarAppFrontmost() else { return }
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let isCommandOnly = flags.contains(.command) && !flags.contains(.option) && !flags.contains(.control)
+        let key = event.charactersIgnoringModifiers?.lowercased()
+        let isCommandW = isCommandOnly && key == "w"
+        let isEscape = event.keyCode == 53 || key == "\u{1b}"
+        if isEscape {
+            scheduleFastVisibilityRefreshBurst()
+            return
+        }
+        guard isCommandW else { return }
+        fadeOutOverlayQuickly()
+        scheduleFastVisibilityRefreshBurst()
+    }
+
+    private func fadeOutOverlayQuickly() {
+        guard let window = overlayWindow else { return }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.1
+            window.animator().alphaValue = 0
+        }
+    }
+
+    /// Some UI actions complete asynchronously (close/dismiss/focus/z-order commit).
+    /// Refresh multiple times to avoid falling back to 1s idle polling.
+    private func scheduleFastVisibilityRefreshBurst() {
+        fastRefreshGeneration += 1
+        let generation = fastRefreshGeneration
+        runFastVisibilityRefreshBurst(generation: generation, remaining: Self.fastRefreshAttempts)
+    }
+
+    private func runFastVisibilityRefreshBurst(generation: Int, remaining: Int) {
+        guard generation == fastRefreshGeneration else { return }
+        checkPosition()
+        guard overlayWindow != nil else { return }
+        guard remaining > 1 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.fastRefreshDelay) { [weak self] in
+            self?.runFastVisibilityRefreshBurst(generation: generation, remaining: remaining - 1)
+        }
+    }
+
+    /// Right after showing, validate frequently to catch quick open→close races
+    /// before the 1s idle polling tick.
+    private func scheduleInitialVisibilityValidation() {
+        initialValidationGeneration += 1
+        let generation = initialValidationGeneration
+        runInitialVisibilityValidation(generation: generation, remaining: Self.initialValidationAttempts)
+    }
+
+    private func runInitialVisibilityValidation(generation: Int, remaining: Int) {
+        guard generation == initialValidationGeneration else { return }
+        guard overlayWindow != nil else { return }
+        checkPosition()
+        guard overlayWindow != nil, remaining > 1 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.initialValidationDelay) { [weak self] in
+            self?.runInitialVisibilityValidation(generation: generation, remaining: remaining - 1)
+        }
+    }
+
+    /// Shared hit-test for move and resize handles of a Calendar window frame.
+    private func isMouseInMoveOrResizeHandle(_ mouseLoc: CGPoint, frame: CGRect) -> Bool {
+        // Drag in draggable area (title bar / toolbar) — likely a window move.
         let draggableTop = frame.maxY
         let draggableBottom = draggableTop - Self.draggableAreaHeight
-        if mouseLoc.x >= frame.minX && mouseLoc.x <= frame.maxX &&
-           mouseLoc.y >= draggableBottom && mouseLoc.y <= draggableTop {
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.1
-                window.animator().alphaValue = 0
+        let inTitleDragArea =
+            mouseLoc.x >= frame.minX && mouseLoc.x <= frame.maxX &&
+            mouseLoc.y >= draggableBottom && mouseLoc.y <= draggableTop
+
+        // Drag near edges/corners — likely a window resize.
+        let expandedFrame = frame.insetBy(dx: -Self.resizeOuterTolerance, dy: -Self.resizeOuterTolerance)
+        let innerFrame = frame.insetBy(dx: Self.resizeBorderThickness, dy: Self.resizeBorderThickness)
+        let inResizeBorder = expandedFrame.contains(mouseLoc) && !innerFrame.contains(mouseLoc)
+
+        return inTitleDragArea || inResizeBorder
+    }
+
+    /// Hit-test the standard traffic-light area (close/minimize/zoom controls).
+    private func isMouseInTrafficLightArea(_ mouseLoc: CGPoint, frame: CGRect) -> Bool {
+        let area = CGRect(
+            x: frame.minX,
+            y: frame.maxY - Self.trafficLightAreaHeight,
+            width: Self.trafficLightAreaWidth,
+            height: Self.trafficLightAreaHeight
+        )
+        return area.contains(mouseLoc)
+    }
+
+    private func areFramesApproximatelyEqual(_ lhs: CGRect, _ rhs: CGRect, tolerance: CGFloat = 1) -> Bool {
+        abs(lhs.origin.x - rhs.origin.x) <= tolerance &&
+        abs(lhs.origin.y - rhs.origin.y) <= tolerance &&
+        abs(lhs.size.width - rhs.size.width) <= tolerance &&
+        abs(lhs.size.height - rhs.size.height) <= tolerance
+    }
+
+    /// Finds topmost on-screen Calendar layer-0 window under the mouse in NS coordinates.
+    private func calendarWindowFrameContaining(_ mouseLoc: CGPoint) -> CGRect? {
+        let pid = resolveCalendarPID()
+        guard pid != 0 else { return nil }
+        guard let windowList = CGWindowListCopyWindowInfo(
+            [.optionOnScreenOnly, .excludeDesktopElements],
+            kCGNullWindowID
+        ) as? [[CFString: Any]] else { return nil }
+
+        for entry in windowList {
+            guard let ownerPID = entry[kCGWindowOwnerPID] as? pid_t,
+                  ownerPID == pid,
+                  let layer = entry[kCGWindowLayer] as? Int, layer == 0,
+                  let bounds = entry[kCGWindowBounds] as? [String: CGFloat],
+                  let x = bounds["X"], let y = bounds["Y"],
+                  let w = bounds["Width"], let h = bounds["Height"] else {
+                continue
             }
-            isMoving = true
-            settleCount = 0
-            scheduleTimer(interval: Self.movingInterval)
+            let frame = convertToNSWindowCoords(x: x, y: y, w: w, h: h)
+            if frame.contains(mouseLoc) {
+                return frame
+            }
         }
+        return nil
     }
 
     // MARK: - Position tracking
@@ -383,8 +586,12 @@ class CalendarOverlayManager: NSObject {
     /// - Frame changed + idle → fade out, switch to fast polling
     /// - Frame changed + isMoving → update lastFrame, reset settle counter
     private func checkPosition() {
-        guard let window = overlayWindow,
-              let calendarFrame = getCalendarWindowFrame() else {
+        guard let window = overlayWindow else {
+            return
+        }
+        guard let calendarFrame = getCalendarWindowFrame() else {
+            // Tracked Calendar window disappeared (close/Cmd+W/Space change) — hide immediately.
+            hideOverlay()
             return
         }
 

@@ -8,6 +8,7 @@ A minimalistic macOS utility that colors the Calendar app with an overlay indica
 
 - Detects timezone differences between Calendar.app's viewing timezone and your team's timezone
 - Provides a visual overlay on the macOS Calendar app when timezones differ
+- Uses fast fade-out handling for window move/resize/close/dismiss transitions to keep overlay behavior responsive
 
 ## Requirements
 
