@@ -82,5 +82,5 @@ stateDiagram-v2
   - `leftMouseDragged` in draggable area and resize border for immediate fade-out on move/resize
   - `leftMouseDown` for traffic-light close and popup outside-click dismiss
   - `keyDown` for `Cmd+W` and `Esc` dismiss
-  - focus changes via `NSWorkspace.didActivateApplicationNotification`
-- Fast visibility refresh burst runs at 50ms cadence for short transition windows to avoid waiting for the 1s idle tick.
+  - focus changes via `NSWorkspace.didActivateApplicationNotification` (immediate fade + single short delayed re-check)
+- Fast visibility refresh burst runs at 50ms cadence for short close/dismiss transition windows to avoid waiting for the 1s idle tick.
