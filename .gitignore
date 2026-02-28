@@ -1,15 +1,24 @@
 # macOS
 .DS_Store
 
-# Xcode user data (match nested paths too)
+# Xcode user-specific data/state (match nested paths too)
 **/xcuserdata/
+**/*.xcuserstate
+**/*.xccheckout
+**/*.moved-aside
+
+# Xcode workspace UI settings (safe to regenerate; avoid noisy diffs)
+**/*.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
 
 # Xcode build
 build/
 DerivedData/
+Products/
 
 # Swift Package Manager
 .build/
+# Keep dependency lockfiles in source control (Apple Xcode Cloud recommendation)
+!**/Package.resolved
 
 # App packaging
 *.ipa
