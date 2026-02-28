@@ -8,6 +8,8 @@ jobs:
   update-cask:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download release asset
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -33,6 +35,9 @@ jobs:
           tap_repo="${owner}/homebrew-zman"
 
           git clone "https://x-access-token:${TAP_TOKEN}@github.com/${tap_repo}.git" tap
+          # Start from template in this repo so non-version metadata (desc/caveats/etc)
+          # stays consistent with source of truth.
+          cp homebrew/zman.rb tap/Casks/zman.rb
           cd tap
 
           # Update version, sha256, and url in the Cask file
@@ -43,5 +48,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add Casks/zman.rb
-          git commit -m "Update zman to ${version}"
+          git commit -m "Update zman to ${version}" || exit 0
           git push
