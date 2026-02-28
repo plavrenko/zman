@@ -4,7 +4,7 @@ cask "zman" do
 
   url "https://github.com/plavrenko/zman/releases/download/v#{version}/Zman-claude-#{version}.zip"
   name "Zman"
-  desc "macOS utility that overlays Calendar.app when timezone mismatches are detected"
+  desc "Highlights Calendar.app when viewing timezone differs from team timezone"
   homepage "https://github.com/plavrenko/zman"
 
   depends_on macos: ">= :tahoe"
