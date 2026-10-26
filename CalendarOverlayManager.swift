@@ -173,9 +173,11 @@ class CalendarOverlayManager: NSObject {
     }
 
     /// Resolve Calendar.app PID, using cache when available.
-    /// Returns 0 if Calendar is not running.
+    /// Returns 0 if Calendar is not running (or, on macOS 27+, has no on-screen windows).
     private func resolveCalendarPID() -> pid_t {
-        if calendarPID != 0 {
+        // Only positive PIDs are cached: kill(-1, 0) succeeds (signals "all processes"),
+        // so a negative PID would otherwise pass the liveness check forever.
+        if calendarPID > 0 {
             // Check if cached PID is still valid (process exists)
             if kill(calendarPID, 0) == 0 { return calendarPID }
             calendarPID = 0
@@ -184,8 +186,36 @@ class CalendarOverlayManager: NSObject {
         guard let app = NSWorkspace.shared.runningApplications.first(where: {
             $0.bundleIdentifier == "com.apple.iCal"
         }) else { return 0 }
-        calendarPID = app.processIdentifier
+        if app.processIdentifier > 0 {
+            calendarPID = app.processIdentifier
+        } else {
+            calendarPID = calendarPIDFromWindowOwners()
+        }
         return calendarPID
+    }
+
+    /// macOS 27 reports Calendar's NSRunningApplication.processIdentifier as -1, while
+    /// CGWindowList still carries the real owner PID. Reverse-map window owners to their
+    /// bundle ID to recover it. Returns 0 if Calendar has no on-screen windows — fine,
+    /// since there is nothing to overlay then; the next poll retries.
+    private func calendarPIDFromWindowOwners() -> pid_t {
+        guard let windowList = CGWindowListCopyWindowInfo(
+            [.optionOnScreenOnly, .excludeDesktopElements],
+            kCGNullWindowID
+        ) as? [[CFString: Any]] else { return 0 }
+
+        var checked = Set<pid_t>()
+        for entry in windowList {
+            guard let ownerPID = entry[kCGWindowOwnerPID] as? pid_t,
+                  let layer = entry[kCGWindowLayer] as? Int, layer == 0,
+                  checked.insert(ownerPID).inserted else {
+                continue
+            }
+            if NSRunningApplication(processIdentifier: ownerPID)?.bundleIdentifier == "com.apple.iCal" {
+                return ownerPID
+            }
+        }
+        return 0
     }
 
     /// Check if Calendar.app has a window visible on the current Space.
@@ -718,9 +748,28 @@ class CalendarOverlayManager: NSObject {
 
 /// The visual overlay view
 struct OverlayView: View {
+    /// Corner radius of standard titled windows on the running macOS, so the overlay
+    /// matches Calendar's corners. Apple changes it between releases (macOS 26: 25pt,
+    /// macOS 27: 16pt), so it's read from a never-shown probe window via the private
+    /// `_cornerRadius` key, guarded by responds(to:) — KVC on a missing key would crash.
+    static let windowCornerRadius: CGFloat = {
+        let probe = NSWindow(
+            contentRect: .zero,
+            styleMask: [.titled, .resizable],
+            backing: .buffered,
+            defer: true
+        )
+        guard probe.responds(to: NSSelectorFromString("_cornerRadius")),
+              let radius = (probe.value(forKey: "_cornerRadius") as? NSNumber)?.doubleValue,
+              radius > 0 else {
+            return 16
+        }
+        return CGFloat(radius)
+    }()
+
     var body: some View {
         Color.orange.opacity(0.15)
-            .clipShape(RoundedRectangle(cornerRadius: 25))
+            .clipShape(RoundedRectangle(cornerRadius: Self.windowCornerRadius))
             .ignoresSafeArea()
     }
 }

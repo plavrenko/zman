@@ -82,7 +82,7 @@ macOS utility that displays an orange overlay on Calendar.app when the app's tim
 **UI**:
 - SF Symbols for icons
 - System colors/materials (controlBackgroundColor)
-- Rounded corners (12pt for cards, 25pt for overlay)
+- Rounded corners (12pt for cards; overlay matches the system window corner radius, read at runtime — 16pt on macOS 27)
 - Semantic color names (.tint, .secondary, .tertiary)
 - Shadow radius: 2pt for elevated cards
 
