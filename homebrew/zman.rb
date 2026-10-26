@@ -7,7 +7,7 @@ cask "zman" do
   desc "Highlights Calendar.app when viewing timezone differs from team timezone"
   homepage "https://github.com/plavrenko/zman"
 
-  depends_on macos: ">= :tahoe"
+  depends_on macos: :tahoe
 
   app "Zman-claude.app"
 

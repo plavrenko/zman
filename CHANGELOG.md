@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Homebrew Cask: use `depends_on macos: :tahoe` instead of the deprecated string comparison form
+
 ## [1.2.2] - 2026-10-26
 
 ### Fixed
