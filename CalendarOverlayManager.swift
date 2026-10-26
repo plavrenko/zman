@@ -748,9 +748,28 @@ class CalendarOverlayManager: NSObject {
 
 /// The visual overlay view
 struct OverlayView: View {
+    /// Corner radius of standard titled windows on the running macOS, so the overlay
+    /// matches Calendar's corners. Apple changes it between releases (macOS 26: 25pt,
+    /// macOS 27: 16pt), so it's read from a never-shown probe window via the private
+    /// `_cornerRadius` key, guarded by responds(to:) — KVC on a missing key would crash.
+    static let windowCornerRadius: CGFloat = {
+        let probe = NSWindow(
+            contentRect: .zero,
+            styleMask: [.titled, .resizable],
+            backing: .buffered,
+            defer: true
+        )
+        guard probe.responds(to: NSSelectorFromString("_cornerRadius")),
+              let radius = (probe.value(forKey: "_cornerRadius") as? NSNumber)?.doubleValue,
+              radius > 0 else {
+            return 16
+        }
+        return CGFloat(radius)
+    }()
+
     var body: some View {
         Color.orange.opacity(0.15)
-            .clipShape(RoundedRectangle(cornerRadius: 25))
+            .clipShape(RoundedRectangle(cornerRadius: Self.windowCornerRadius))
             .ignoresSafeArea()
     }
 }

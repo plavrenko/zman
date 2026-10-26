@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Overlay never appeared on macOS 27: `NSRunningApplication` reports Calendar's PID as -1, so its windows were never matched. The real PID is now recovered from CGWindowList window owners
 - Never cache a non-positive Calendar PID (`kill(-1, 0)` succeeds and would keep a bad PID cached forever)
+- Overlay corners didn't match Calendar's on macOS 27 (16pt windows vs hardcoded 25pt). The radius is now read from the system at launch, with a 16pt fallback
 
 ## [1.2.1] - 2026-02-28
 
